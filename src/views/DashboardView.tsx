@@ -76,7 +76,7 @@ function PreOpeningDashboard() {
         lines={["운영 예정 법인: (주)이다컴퍼니 (1호 실증 후보)", "개업 예정일: 미확정", "가상 시설 · 객실 5실 (샘플 구성)"]}
         right={
           <>
-            <LinkButton href="/pre-opening" variant="primary" size="sm" icon={ListTodo} className="[[data-theme=t06]_&]:!bg-highlight [[data-theme=t06]_&]:!text-[#15171C] [[data-theme=t07]_&]:!bg-highlight [[data-theme=t07]_&]:!text-white">체크리스트 열기</LinkButton>
+            <LinkButton href="/pre-opening" variant="primary" size="sm" icon={ListTodo} className="[[data-theme=t06]_&]:!bg-highlight [[data-theme=t06]_&]:!text-shell [[data-theme=t07]_&]:!bg-highlight [[data-theme=t07]_&]:!text-white">체크리스트 열기</LinkButton>
             <LinkButton href="/presentation" size="sm" icon={Presentation} className="!border-white/30 !bg-white/10 !text-white hover:!bg-white/20">시연 모드</LinkButton>
           </>
         }

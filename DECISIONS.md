@@ -1,0 +1,53 @@
+# DECISIONS — 중요한 설계 결정 (WHY / WHY NOT / REVISIT)
+
+## D-01 데이터 저장: 브라우저 공통 DemoRepository (Supabase 미연결)
+- **DECISION:** localStorage 단일 Key + `storage` 이벤트 + BroadcastChannel로 PC·Mobile iframe·다른 탭이 같은 상태를 공유한다. 모든 변경은 `commit()` 한 곳을 거치고 rev를 올린다.
+- **WHY:** Supabase 접속정보가 없다. DB 연결을 가장하지 않으면서 PC↔Mobile 동일 데이터(Master v4.1 P0)를 보장하는 가장 안정적인 방법. Serverless 인메모리 저장은 인스턴스가 나뉘면 시연 중 데이터가 엇갈릴 위험이 있다.
+- **WHY NOT 서버 메모리 저장소:** Vercel 등에서 인스턴스 분산 → PC/Mobile 불일치(P0 FAIL) 위험.
+- **한계:** 다른 기기(실제 휴대폰)와 데이터 공유 불가 — 화면·문서에 명시.
+- **REVISIT WHEN:** Supabase 프로젝트·키가 제공될 때 → `supabase/migrations` 초안 적용, 같은 Action 인터페이스 뒤에 SupabaseRepository 구현.
+
+## D-02 도어락: 서버 Route + Stateless DemoAccessProvider, LiveAccessProvider는 의도적 미구현
+- **DECISION:** 브라우저는 `/api/access/*`만 호출. Demo Provider는 서명된 providerRef(HMAC)에 요청 정보를 담아 상태를 시간차로 계산(수락 → 1.6초 후 가상 적용 확인 / 실패 / 6초 미응답). `LIVE_LOCK_ENABLED=false` 기본, true여도 Live는 예외를 던져 차단.
+- **WHY:** 물리 출입은 HIGH Error Cost. 실제 호출 코드가 동작하는 것처럼 꾸미지 않으면서 서버 측 Adapter 구조와 상태머신(요청 수락 ≠ 기기 적용)을 그대로 보여준다.
+- **WHY NOT 클라이언트에서 가짜 상태만 변경:** 서버 Adapter 경계·idempotency·위변조 방지(서명)를 시연할 수 없다.
+- **REVISIT WHEN:** 업체 공식 API 문서·계약·테스트 장비 확보 후 (`INTEGRATION_READINESS.md`).
+
+## D-03 출입코드 표시 규칙
+- **DECISION:** 고객 화면에는 `DEMO_CONFIRMED` 상태 + 이 브라우저에서 본인 확인 완료(24시간 내)일 때만 코드 표시. 관리자 화면·활동기록은 `••••12` 마스킹. 실패·미응답 시 코드 대신 '입실 가능 상태 아님' + 비상 연락.
+- **WHY:** 회사 프롬프트 §4.2·§5.3·§10. 고객 이름만으로 코드 노출 금지.
+- **한계:** Demo 코드는 localStorage에 저장된다(시연 코드, 실제 출입 불가). 운영 시에는 서버 암호화 저장·1회 조회·TTL·감사로그.
+
+## D-04 시뮬레이션 시계
+- **DECISION:** `simulation.clock`(기준 가상 시각) + `anchoredAt`(설정 시점). 현재 가상 시각 = clock + (지금 − anchoredAt). 예약·청소·문의 기록은 가상 시각, 활동기록·알림은 실제 시각.
+- **WHY:** 미래 예약(2026-11-05)을 10/27 미팅에서 '입실 가능 시간'으로 시연해야 하면서, 청소 처리시간 같은 경과시간은 실제와 같아야 한다. 초기 구현에서 실제/가상 시각이 섞여 정렬 오류가 났던 문제를 근본적으로 해결.
+- **REVISIT WHEN:** LIVE 운영 전환 시 시뮬레이션 제거.
+
+## D-05 개업 준비 Seed 날짜는 '초기화 시점 오늘' 기준 상대 날짜
+- **WHY:** 어느 날 시연해도 '오늘 마감 1건 · 지연 1건'이 같은 순서로 재현된다(Demo Reset 반복 재현성). 운영 시뮬레이션 예약은 프롬프트 예시대로 2026-11 고정.
+
+## D-06 Theme: Canonical 7 유지 + 01 Theme에 브랜드 조정(기본 ON)
+- **DECISION:** 7개 Palette 값은 Master 그대로. 01 Deep Navy Blue에만 'StayOps 브랜드 조정(차콜 네이비 + 오렌지)'을 기본 적용하고, 설정에서 끄면 원본 Canonical 값으로 복귀.
+- **WHY:** 회사 프롬프트 §8(기본 차콜 네이비+오렌지)과 Master v2.0 §6(7개 중 1개를 Seed로 브랜드 미세조정) 동시 충족, Theme 수는 7 유지.
+- **WHY NOT 8번째 브랜드 Theme 추가:** Master v4.0 C "Theme 7 고정" 위반.
+
+## D-07 Device View의 Persona Route 정책
+- **DECISION:** Mobile 대상 `같은 화면(SYNC)` / `직원 앱` / `고객 화면`. SYNC에서는 Business AX Route를 양방향 동기화. `/staff`, `/guest`는 역할 전용 화면이라 Persona 모드에서는 PC와 독립 이동. 프레임 메시지에 initiator(init/parent/frame)를 붙여 사용자가 모바일에서 직접 이동한 경우에만 PC가 따라간다.
+- **WHY:** Scene A(PC 대시보드 + 모바일 직원 앱)와 Scene B(PC 예약 + 모바일 고객 화면)는 서로 다른 Route를 동시에 보여줘야 한다. initiator가 없으면 프레임의 초기·지연 보고가 PC 이동을 되돌리는 경합이 발생(E2E로 발견·수정).
+
+## D-08 Dual 모드 레이아웃: 고정 틀(transform) + 내부 스크롤
+- **WHY:** Modal·Toast·Tour·Bottom Nav를 PC 영역 안에 가두면서, PC 영역을 스크롤해도 고정 요소가 화면 밖으로 밀리지 않게 하기 위함(E2E로 검증).
+
+## D-09 AI: 규칙 기반 진단 · AI Ready, LLM 호출 코드 미작성
+- **WHY:** API 키·승인 없음(프롬프트 §7). 판정은 결정론적 규칙, 요약은 템플릿. 첫 LLM 후보는 '위험 요약 + 대응 순서' 1개.
+- **REVISIT WHEN:** 서버 측 키와 사용 승인 제공 시.
+
+## D-10 Proof Event 기록 범위
+- **DECISION:** 필수 개업 준비 완료, 코치 승인 업무 완료, 셀프 체크인 완료, 체크아웃→입실준비, 출입 장애 수동 처리, 고객 문의 처리 완료.
+- **WHY:** Trigger → 판단 → (승인) → 행동 → 결과가 실제로 이어지는 사건만 증거로 남긴다. KPI 필드에는 상태 변화만 적고 '개선율'은 쓰지 않는다(Baseline 미확보).
+
+## D-11 기술 스택
+- Next.js 15.5 App Router + React 19.1 + TypeScript 5.9 + Tailwind 3.4(+ container queries) + lucide-react + immer + qrcode. 검증된 안정 버전 고정(최신 메이저 대신). shadcn/ui는 쓰지 않고 소수 공통 컴포넌트를 직접 구현(의존성·번들 최소화).
+
+## D-12 사진 Asset 미사용
+- **WHY:** 제공된 이미지는 문구·가상 수치가 합성된 시안이라 실사 Asset으로 쓸 수 없다. 실제 현장 사진처럼 오인될 위험도 있다. 절제된 그래픽 배너로 대체하고 Asset Pack 생성은 USER ACTION으로 남김.

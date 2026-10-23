@@ -106,3 +106,26 @@ test("장애 시나리오 — 재발급 시도로 정상 적용", async ({ page 
   await page.getByTestId("incident-retry").first().click();
   await expect(f.getByTestId("access-code-card")).toBeVisible({ timeout: 15_000 });
 });
+
+test("예약 취소 → 체크인 링크 무효화 / 출입권한 수동 회수 · 회수 실패 시 긴급 확인", async ({ page }) => {
+  await page.goto("/reservations?r=res04");
+  const token = await demoState<string>(page, "(s) => s.reservations.find(r => r.id === 'res04').guestToken.token");
+  await page.getByTestId("res-cancel").click();
+  await page.getByTestId("res-cancel-confirm").click();
+  await expect(page.getByTestId("reservation-detail").getByTestId("reservation-status")).toHaveText("취소");
+  await page.goto(`/guest/check-in/${token}`);
+  await expect(page.getByTestId("token-problem")).toContainText("더 이상 사용할 수 없는 링크");
+
+  // 회수 실패 시나리오: 투숙중 101호(res01) 권한을 수동 회수
+  await page.goto("/access");
+  await page.getByRole("radio", { name: "회수 실패" }).or(page.getByRole("tab", { name: "회수 실패" })).click();
+  await page.getByTestId("grant-ag01").click();
+  await page.getByRole("button", { name: "수동 회수" }).click();
+  await expect.poll(() => demoState<string>(page, "(s) => s.accessGrants.find(g => g.id === 'ag01').status")).toBe("MANUAL_REVIEW");
+  await page.keyboard.press("Escape");
+  const inc = page.locator('[data-testid^="incident-inc_"]').first();
+  await expect(inc).toContainText("회수 실패");
+  await inc.getByTestId("incident-manual").click();
+  await page.getByTestId("incident-resolve-confirm").click();
+  await expect.poll(() => demoState<string>(page, "(s) => s.accessGrants.find(g => g.id === 'ag01').status")).toBe("REVOKED");
+});

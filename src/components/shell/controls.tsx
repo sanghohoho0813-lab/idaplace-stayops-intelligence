@@ -114,7 +114,7 @@ export function StageToggle({ full = false }: { full?: boolean }) {
             <Icon className="h-4 w-4" aria-hidden />
             <span className="hidden @xl/shell:inline">{label}</span>
             <span className="@xl/shell:hidden">{short}</span>
-            {v === "SIMULATION" && <span className={clsx("rounded px-1 text-[0.62rem] font-extrabold", active ? "bg-highlight text-[#1b1b1b]" : "bg-demo-soft text-demo")}>DEMO</span>}
+            {v === "SIMULATION" && <span className={clsx("rounded px-1 text-[0.62rem] font-extrabold", active ? "bg-highlight text-ink" : "bg-demo-soft text-demo")}>DEMO</span>}
           </button>
         );
       })}
@@ -258,7 +258,7 @@ export function SimulationBar() {
     { label: "다음날 퇴실 시간대", iso: atKst(addDays(d, 1), "10:40"), Icon: Moon },
   ];
   return (
-    <div data-testid="simulation-bar" className="border-b border-black/10 bg-[linear-gradient(90deg,rgb(var(--theme-shell))_0%,rgb(var(--theme-shell)/0.94)_70%,rgb(var(--theme-primary)/0.55)_130%)] px-4 py-2 text-white @xl/shell:px-8 [[data-theme=t07]_&]:bg-[linear-gradient(90deg,#171B20,#343B44)]">
+    <div data-testid="simulation-bar" className="border-b border-black/10 bg-[linear-gradient(90deg,rgb(var(--theme-shell))_0%,rgb(var(--theme-shell)/0.94)_70%,rgb(var(--theme-primary)/0.55)_130%)] px-4 py-2 text-white @xl/shell:px-8 [[data-theme=t07]_&]:bg-[linear-gradient(90deg,rgb(var(--theme-primary)),rgb(var(--theme-secondary)))]">
       <div className="mx-auto flex max-w-[1680px] flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="inline-flex items-center gap-1.5 rounded-md bg-white/15 px-2 py-0.5 text-[0.72rem] font-extrabold tracking-wide">
           <FlaskConical className="h-3.5 w-3.5" aria-hidden /> FUTURE OPERATIONS · DEMO

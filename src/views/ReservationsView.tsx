@@ -337,6 +337,7 @@ function GuestLinkCard({ r }: { r: Reservation }) {
         <div className="min-w-0 flex-1 space-y-2">
           <p className="flex items-center gap-1.5 font-bold"><QrCode className="h-4 w-4" aria-hidden /> 고객 셀프 체크인 링크</p>
           <p className="text-[0.78rem] text-ink-2">QR은 <b>예약 토큰</b>만 담습니다. 도어락 개방 명령·출입코드를 담지 않으며, 본인 확인 전에는 코드가 표시되지 않습니다.</p>
+          <p className="text-[0.72rem] font-semibold text-warning">데모 한계: DB 미연결로 다른 기기(실제 휴대폰)에서는 이 예약이 보이지 않습니다. 시연은 &lsquo;모바일로 열기&rsquo;를 사용하세요.</p>
           <p className="truncate rounded-lg bg-surface-2 px-2 py-1 font-mono text-[0.7rem] text-muted" title="토큰 일부만 표시">{origin}/guest/…/{token!.slice(0, 6)}••••</p>
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" icon={Smartphone} data-testid="open-guest-mobile" onClick={() => (dv?.available ? dv.openInMobile(path) : window.open(path, "_blank"))}>

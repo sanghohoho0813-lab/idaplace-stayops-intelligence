@@ -115,7 +115,7 @@ export function Donut({ value, total, label, sub, size = 132 }: { value: number;
 /** 상단 Context Banner — 사진 대신 절제된 그래픽 (실제 현장 사진을 가장하지 않음) */
 export function ContextBanner({ title, lines, right, testId }: { title: string; lines: React.ReactNode[]; right?: React.ReactNode; testId?: string }) {
   return (
-    <div data-testid={testId} className="relative mb-5 overflow-hidden rounded-[22px] bg-shell px-5 py-5 text-white shadow-raised @lg/shell:px-7 [[data-theme=t07]_&]:bg-[#171B20]">
+    <div data-testid={testId} className="relative mb-5 overflow-hidden rounded-[22px] bg-shell px-5 py-5 text-white shadow-raised @lg/shell:px-7 [[data-theme=t07]_&]:bg-primary">
       <svg className="pointer-events-none absolute -right-6 -top-10 h-[220px] w-[420px] opacity-[0.16]" viewBox="0 0 420 220" aria-hidden>
         <path d="M40 180 L120 110 L200 180" fill="none" stroke="white" strokeWidth="2" />
         <path d="M150 180 L250 80 L350 180" fill="none" stroke="white" strokeWidth="2" />

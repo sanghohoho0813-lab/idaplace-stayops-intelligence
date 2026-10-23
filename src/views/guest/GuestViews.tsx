@@ -61,7 +61,7 @@ function StayCard({ s, r, showRoom }: { s: DemoState; r: Reservation; showRoom: 
 
 function TokenProblem({ reason }: { reason: "NOT_FOUND" | "REVOKED" | "EXPIRED" }) {
   const text = {
-    NOT_FOUND: ["링크를 확인할 수 없습니다", "주소가 정확한지 확인하거나 예약번호로 조회하세요."],
+    NOT_FOUND: ["링크를 확인할 수 없습니다", "주소가 정확한지 확인하거나 예약번호로 조회하세요. (데모: DB 미연결로 다른 기기·브라우저에서 만든 예약은 보이지 않습니다)"],
     REVOKED: ["더 이상 사용할 수 없는 링크입니다", "예약이 취소되었거나 새 링크가 발급되었습니다."],
     EXPIRED: ["유효기간이 지난 링크입니다", "체크아웃 후에는 체크인 링크를 사용할 수 없습니다."],
   }[reason];
