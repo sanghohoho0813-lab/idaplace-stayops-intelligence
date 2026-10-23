@@ -6,7 +6,7 @@ import clsx from "clsx";
 import QRCode from "qrcode";
 import { CalendarPlus, Copy, QrCode, RefreshCw, Smartphone, XCircle, LogOut, KeyRound, Pencil, AlertTriangle, CheckCircle2, CalendarRange, ShieldAlert } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
-import { Badge, Button, Card, CardHeader, DemoBadge, EmptyState, Field, inputCls, KV, PageHeader } from "@/components/ui/primitives";
+import { Badge, Button, Card, CardHeader, DemoBadge, Field, inputCls, KV, PageHeader } from "@/components/ui/primitives";
 import { Overlay } from "@/components/ui/Overlay";
 import { useToast } from "@/components/ui/Toast";
 import { addDays, diffDays, fmtDate, fmtDateKo, fmtInstant, kstDate, simNow, weekdayKo } from "@/domain/time";
@@ -34,7 +34,6 @@ export function ReservationsView() {
   const start = addDays(simToday, -3);
   const days = Array.from({ length: DAYS }, (_, i) => addDays(start, i));
   const editable = can(s.ui.role, "edit.reservations");
-  const pii = can(s.ui.role, "view.guestPII");
   const setParam = (k: string, v: string | null) => {
     const p = new URLSearchParams(sp.toString());
     if (v === null) p.delete(k);
@@ -332,6 +331,7 @@ function GuestLinkCard({ r }: { r: Reservation }) {
     <div className="rounded-2xl border border-line p-4" data-tour="guest-link" data-testid="guest-link-card">
       <div className="flex items-start gap-4">
         <div className="shrink-0 rounded-xl border border-line bg-white p-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 클라이언트에서 생성한 QR data URL */}
           {qr ? <img src={qr} alt="고객 체크인 QR 코드 (예약 토큰 링크)" width={120} height={120} className="h-[120px] w-[120px]" data-testid="guest-qr" /> : <div className="skeleton h-[120px] w-[120px]" />}
         </div>
         <div className="min-w-0 flex-1 space-y-2">

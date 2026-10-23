@@ -245,7 +245,7 @@ function Header({ onMenu }: { onMenu: () => void }) {
           <p className="truncate text-[0.78rem] text-muted">{s.ui.stage === "PRE_OPENING" ? "개업 준비 단계 — 오늘 처리할 준비 업무를 정리했습니다." : "미래 운영 시뮬레이션 — 가상의 하루 운영을 시연합니다."}</p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="hidden @md/shell:block">
+          <span className="hidden @xl/shell:block">
             <StageToggle />
           </span>
           <span className="hidden @sm/shell:inline-flex">
@@ -256,8 +256,10 @@ function Header({ onMenu }: { onMenu: () => void }) {
           <NotificationBell />
         </div>
       </div>
-      <div className="px-4 pb-2.5 @md/shell:hidden">
-        <StageToggle full />
+      <div className="px-4 pb-2.5 @xl/shell:hidden">
+        <div className="@md/shell:max-w-[520px]">
+          <StageToggle full />
+        </div>
       </div>
     </header>
   );

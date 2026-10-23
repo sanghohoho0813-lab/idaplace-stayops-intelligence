@@ -12,7 +12,6 @@ import type {
 import type { ThemeId } from "@/lib/theme/themes";
 import { commit, replaceState, getSnapshot } from "./repository";
 import type { Actor } from "./actor";
-import { SYSTEM } from "./actor";
 import { uid, guestToken, digits } from "@/domain/ids";
 import { addDays, atKst, kstDate, minutesBetween, nowIso, simNow, toMs } from "@/domain/time";
 import { maskName, maskPhone } from "@/domain/format";

@@ -95,7 +95,9 @@ export function FrameProvider({ children }: { children: React.ReactNode }) {
   return <FrameContext.Provider value={v}>{children}</FrameContext.Provider>;
 }
 
-/** iframe 내부: 부모와 Route 동기화 */
+/** iframe 내부: 부모와 Route 동기화
+ *  route 메시지에 initiator를 붙인다 — init(최초 로딩) / parent(부모 요청으로 이동) / frame(모바일에서 사용자가 이동)
+ *  부모는 initiator=frame 인 경우에만 PC 화면을 따라 이동시켜, 오래된 보고가 PC 이동을 되돌리지 않게 한다. */
 function FrameRouteBridge() {
   const router = useRouter();
   const pathname = usePathname();
@@ -103,9 +105,19 @@ function FrameRouteBridge() {
   const current = cleanPath(pathname, search.toString());
   const currentRef = useRef(current);
   currentRef.current = current;
+  const expectedRef = useRef<string | null>(null);
+  const firstRef = useRef(true);
 
   useEffect(() => {
-    window.parent.postMessage({ source: FRAME_SRC, type: "route", path: current }, window.location.origin);
+    let initiator: "init" | "parent" | "frame" = "frame";
+    if (firstRef.current) {
+      firstRef.current = false;
+      initiator = "init";
+    } else if (expectedRef.current === current) {
+      initiator = "parent";
+      expectedRef.current = null;
+    }
+    window.parent.postMessage({ source: FRAME_SRC, type: "route", path: current, initiator }, window.location.origin);
   }, [current]);
 
   useEffect(() => {
@@ -114,10 +126,13 @@ function FrameRouteBridge() {
       const m = e.data as { source?: string; type?: string; path?: string };
       if (m?.source !== PARENT_SRC || m.type !== "navigate" || typeof m.path !== "string") return;
       if (!m.path.startsWith("/") || m.path.startsWith("//")) return;
-      if (m.path !== currentRef.current) router.push(m.path, { scroll: true });
+      if (m.path !== currentRef.current) {
+        expectedRef.current = m.path;
+        router.push(m.path, { scroll: true });
+      }
     };
     window.addEventListener("message", onMsg);
-    window.parent.postMessage({ source: FRAME_SRC, type: "ready", path: currentRef.current }, window.location.origin);
+    window.parent.postMessage({ source: FRAME_SRC, type: "ready", path: currentRef.current, initiator: "init" }, window.location.origin);
     return () => window.removeEventListener("message", onMsg);
   }, [router]);
   return null;
@@ -145,6 +160,8 @@ export function DeviceViewProvider({ children }: { children: React.ReactNode }) 
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const framePathRef = useRef("");
   const pcPathRef = useRef("/dashboard");
+  /** 명시적으로 요청한 frame 경로 — frame이 로딩 중이라 메시지를 못 받으면 ready/route 시점에 다시 보낸다 */
+  const pendingRef = useRef<string | null>(null);
   const targetRef = useRef<MobileTarget>("SYNC");
   targetRef.current = target;
 
@@ -201,10 +218,17 @@ export function DeviceViewProvider({ children }: { children: React.ReactNode }) 
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
       if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
-      const m = e.data as { source?: string; type?: string; path?: string };
+      const m = e.data as { source?: string; type?: string; path?: string; initiator?: string };
       if (m?.source !== FRAME_SRC || typeof m.path !== "string") return;
       framePathRef.current = m.path;
       setFramePath(m.path);
+      if (pendingRef.current) {
+        if (m.path === pendingRef.current) pendingRef.current = null;
+        else {
+          postNavigate(pendingRef.current);
+          return;
+        }
+      }
       if (m.type === "ready") {
         // 프레임이 이미 같은 Persona(직원/고객) 안에 있으면 그대로 둔다. SYNC는 PC 경로로 맞춘다.
         const t = targetRef.current;
@@ -216,6 +240,11 @@ export function DeviceViewProvider({ children }: { children: React.ReactNode }) 
       if (persona === "GUEST") {
         setGuestPath(m.path);
         writeLS(GUEST_PATH_KEY, m.path);
+      }
+      if (m.initiator !== "frame") {
+        // 초기 로딩·부모 요청에 따른 이동 보고 — SYNC 모드에서 PC와 다르면 frame을 PC 경로로 맞춘다
+        if (targetRef.current === "SYNC" && m.path !== pcPathRef.current) postNavigate(pcPathRef.current);
+        return;
       }
       if (targetRef.current === "SYNC") {
         if (persona !== "SYNC" && !isPersonaPath(pcPathRef.current)) {
@@ -255,6 +284,7 @@ export function DeviceViewProvider({ children }: { children: React.ReactNode }) 
         setGuestPath(dest);
         writeLS(GUEST_PATH_KEY, dest);
       }
+      pendingRef.current = dest;
       if (frameRef.current?.contentWindow) postNavigate(dest);
       else setFrameSrc(withFrameFlag(dest));
     },
@@ -276,6 +306,7 @@ export function DeviceViewProvider({ children }: { children: React.ReactNode }) 
         setGuestPath(path);
         writeLS(GUEST_PATH_KEY, path);
       }
+      pendingRef.current = path;
       if (frameRef.current?.contentWindow) postNavigate(path);
       else setFrameSrc(withFrameFlag(path));
     },
