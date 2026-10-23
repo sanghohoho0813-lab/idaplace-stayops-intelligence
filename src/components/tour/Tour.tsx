@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight, X, Presentation as PresIcon, GraduationCap } from "lucide-react";
 import { forceUnlockScroll } from "@/components/ui/overlay-utils";
-import { useDeviceView } from "@/components/device/DeviceView";
+import { useDeviceView, useFrame } from "@/components/device/DeviceView";
 import { useStore } from "@/components/providers/StoreProvider";
 import { markTutorialSeen, setStage } from "@/lib/store/actions";
 import type { DemoState } from "@/domain/types";
@@ -188,7 +188,7 @@ function Spotlight({ target }: { target?: string }) {
       }
       const r = el.getBoundingClientRect();
       const pane = document.getElementById("dv-pc");
-      const off = pane?.dataset.scrollRoot === "true" ? pane.getBoundingClientRect() : { top: 0, left: 0 };
+      const off = pane?.dataset.dual === "true" ? pane.getBoundingClientRect() : { top: 0, left: 0 };
       const next = { top: Math.round(r.top - off.top - 6), left: Math.round(r.left - off.left - 6), width: Math.round(r.width + 12), height: Math.round(r.height + 12) };
       setRect((prev) => (prev && prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.height === next.height ? prev : next));
     };
@@ -216,7 +216,8 @@ export function TourHost() {
   const router = useRouter();
   const pathname = usePathname();
   const dv = useDeviceView();
-  const def = tour ? TOURS[tour.id] : null;
+  const { isFrame } = useFrame();
+  const def = tour && !isFrame ? TOURS[tour.id] : null;
   const step = def && tour ? def.steps[tour.step] : null;
 
   const ctx: TourCtx = {
@@ -262,7 +263,7 @@ export function TourHost() {
         role="dialog"
         aria-label={`${def.label} ${tour.step + 1}/${def.steps.length}`}
         data-testid="tour-card"
-        className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3 z-[90] animate-fade-up rounded-2xl border border-line bg-surface p-4 shadow-pop @md/shell:bottom-6 @md/shell:left-auto @md/shell:right-6 @md/shell:w-[420px]"
+        className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3 z-[90] animate-fade-up rounded-2xl border border-line bg-surface p-4 shadow-pop @md/shell:bottom-6 @md/shell:right-auto @md/shell:w-[420px] @lg/shell:left-[108px] @xl/shell:left-[296px]"
       >
         <div className="flex items-center gap-2">
           <span className={clsx("flex h-8 w-8 items-center justify-center rounded-lg", tour.id === "presentation" ? "bg-primary text-primary-fg" : "bg-soft text-primary-ink")}>

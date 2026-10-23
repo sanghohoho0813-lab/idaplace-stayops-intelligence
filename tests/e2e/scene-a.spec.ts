@@ -7,7 +7,9 @@ test("Scene A — 모바일 직원 완료 → PC 준비율·알림·활동기록
   await expect(page.getByTestId("stage-badge")).toContainText("PRE-OPENING");
   // 허위 운영매출·가동률 미표시
   await expect(page.getByText("객실 가동률")).toHaveCount(0);
-  const before = Number((await page.getByTestId("kpi-readiness-value").textContent())!.replace(/\D/g, ""));
+  const kpi = async () => Number((await page.getByTestId("kpi-readiness-value").textContent())!.replace(/\D/g, ""));
+  await page.waitForTimeout(1200); // KPI Count-up(첫 진입 1회) 종료 대기
+  const before = await kpi();
 
   await page.goto("/pre-opening?task=pt08");
   await expect(page.getByTestId("task-detail")).toBeVisible();
@@ -23,8 +25,7 @@ test("Scene A — 모바일 직원 완료 → PC 준비율·알림·활동기록
   await expect(page.getByTestId("task-detail")).toContainText("완료");
   await page.keyboard.press("Escape");
   await page.goto("/dashboard");
-  const after = Number((await page.getByTestId("kpi-readiness-value").textContent())!.replace(/\D/g, ""));
-  expect(after).toBeGreaterThan(before);
+  await expect.poll(kpi).toBeGreaterThan(before);
   await expect(page.getByTestId("dashboard-notifications")).toContainText("203호 도어락 설치 점검");
   await expect(page.getByTestId("activity-list")).toContainText("완료 보고");
   const proofs = await demoState<string[]>(page, "(s) => s.proofEvents.map(p => p.event_type)");

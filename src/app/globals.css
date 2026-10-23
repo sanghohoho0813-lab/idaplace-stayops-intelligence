@@ -72,14 +72,18 @@ html[data-font="LG"] { font-size: 21px; }
   overflow: hidden;
 }
 .dv-root[data-dv="dual"] > .dv-pc {
+  position: relative;
   flex: 1 1 67%;
   min-width: 0;
   height: 100%;
+  overflow: hidden;
+  /* 고정 요소(Modal·Toast·Bottom Nav·Tour)가 PC 영역 안에서만 뜨도록 containing block 생성 */
+  transform: translateZ(0);
+}
+.dv-root[data-dv="dual"] > .dv-pc > .dv-scroll {
+  height: 100%;
   overflow-y: auto;
   overflow-x: clip;
-  /* 고정 요소(Modal·Toast·Bottom Nav)가 PC 영역 안에서만 뜨도록 containing block 생성 */
-  transform: translateZ(0);
-  contain: layout paint;
 }
 .dv-root[data-dv="mobile"] > .dv-pc { display: none; }
 .dv-root[data-dv="pc"] > .dv-pc { min-height: 100vh; }

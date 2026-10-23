@@ -76,7 +76,7 @@ function PreOpeningDashboard() {
         lines={["운영 예정 법인: (주)이다컴퍼니 (1호 실증 후보)", "개업 예정일: 미확정", "가상 시설 · 객실 5실 (샘플 구성)"]}
         right={
           <>
-            <LinkButton href="/pre-opening" variant="primary" size="sm" icon={ListTodo}>체크리스트 열기</LinkButton>
+            <LinkButton href="/pre-opening" variant="primary" size="sm" icon={ListTodo} className="[[data-theme=t06]_&]:!bg-highlight [[data-theme=t06]_&]:!text-[#15171C] [[data-theme=t07]_&]:!bg-highlight [[data-theme=t07]_&]:!text-white">체크리스트 열기</LinkButton>
             <LinkButton href="/presentation" size="sm" icon={Presentation} className="!border-white/30 !bg-white/10 !text-white hover:!bg-white/20">시연 모드</LinkButton>
           </>
         }
@@ -152,6 +152,7 @@ function PreOpeningDashboard() {
             ))}
           </ul>
         </Card>
+        {can(s.ui.role, "view.insights") ? (
         <Card data-tour="coach-card">
           <CardHeader
             title="AI 개업 코치"
@@ -182,6 +183,15 @@ function PreOpeningDashboard() {
             <LinkButton href="/insights" size="sm" variant="ghost" className="w-full">코치 전체 보기 ({coach.length}) <ArrowRight className="h-4 w-4" /></LinkButton>
           </div>
         </Card>
+        ) : (
+          <Card>
+            <CardHeader title="내 업무 바로가기" icon={ListTodo} iconTone="ops" subtitle="현장직원 역할 — 코치 승인 권한 없음" />
+            <div className="p-5 text-[0.88rem] text-ink-2">
+              <p>배정된 업무와 오늘 우선 처리 항목은 직원 앱에서 확인하세요.</p>
+              <LinkButton href="/staff/tasks" variant="primary" size="sm" className="mt-3">직원 앱 열기</LinkButton>
+            </div>
+          </Card>
+        )}
         <Card>
           <CardHeader title="알림 · 활동 기록" icon={Bell} iconTone="sys" subtitle="모바일 완료 보고가 실시간 반영됩니다" />
           <ul className="mt-3 space-y-1.5 px-4" data-testid="dashboard-notifications">
@@ -333,7 +343,7 @@ function SimDashboard() {
         </Card>
       </div>
       <div className="mt-4 grid gap-4 @xl/shell:grid-cols-3">
-        <Card data-tour="coach-card">
+        <Card data-tour="coach-card" className={clsx(!can(s.ui.role, "view.insights") && "hidden")}>
           <CardHeader title="AI 운영 코치" icon={BrainCircuit} iconTone="intel" subtitle="규칙 기반 진단 · AI Ready" />
           <div className="space-y-2.5 p-4">
             {coach.slice(0, 2).map((i) => (

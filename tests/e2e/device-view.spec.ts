@@ -71,3 +71,22 @@ test("반응형 폭 360~1920 가로 넘침 없음", async ({ page }) => {
     }
   }
 });
+
+test("PC+Mobile에서 PC 영역을 스크롤한 뒤 연 Drawer·Toast도 화면 안에 표시", async ({ page }) => {
+  await page.goto("/pre-opening");
+  await page.getByTestId("device-dual").click();
+  await expect(page.getByTestId("dual-view")).toBeVisible();
+  await page.evaluate(() => document.getElementById("dv-scroll")!.scrollTo(0, 700));
+  await page.getByTestId("task-row-pt14").click();
+  const panel = page.getByTestId("task-detail").getByRole("dialog");
+  await expect(panel).toBeVisible();
+  await page.waitForTimeout(400);
+  const b = (await panel.boundingBox())!;
+  expect(b.y).toBeGreaterThanOrEqual(0);
+  expect(b.y).toBeLessThan(10);
+  expect(b.y + b.height).toBeLessThanOrEqual(901);
+  // 닫은 뒤 PC 영역 스크롤 복구
+  await page.getByTestId("overlay-close").click();
+  await expect(page.getByTestId("task-detail")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.getElementById("dv-scroll")!.style.overflow)).toBe("");
+});

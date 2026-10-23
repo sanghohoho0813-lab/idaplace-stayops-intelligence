@@ -106,17 +106,19 @@ function FrameRouteBridge() {
   const currentRef = useRef(current);
   currentRef.current = current;
   const expectedRef = useRef<string | null>(null);
-  const firstRef = useRef(true);
+  const lastPostedRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // 같은 경로를 중복 보고하지 않는다 (React StrictMode의 effect 재실행 포함)
+    if (lastPostedRef.current === current) return;
     let initiator: "init" | "parent" | "frame" = "frame";
-    if (firstRef.current) {
-      firstRef.current = false;
+    if (lastPostedRef.current === null) {
       initiator = "init";
     } else if (expectedRef.current === current) {
       initiator = "parent";
       expectedRef.current = null;
     }
+    lastPostedRef.current = current;
     window.parent.postMessage({ source: FRAME_SRC, type: "route", path: current, initiator }, window.location.origin);
   }, [current]);
 

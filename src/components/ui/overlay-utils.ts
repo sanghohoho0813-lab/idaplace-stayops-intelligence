@@ -5,7 +5,7 @@ let saved: { el: HTMLElement; overflow: string } | null = null;
 
 function scrollRoot(): HTMLElement {
   const pane = document.getElementById("dv-pc");
-  if (pane?.dataset.scrollRoot === "true") return pane;
+  if (pane?.dataset.dual === "true") return document.getElementById("dv-scroll") ?? pane;
   return document.documentElement;
 }
 
@@ -36,8 +36,8 @@ export function forceUnlockScroll() {
     saved = null;
   }
   document.documentElement.style.overflow = "";
-  const pane = document.getElementById("dv-pc");
-  if (pane) pane.style.overflow = "";
+  const sc = document.getElementById("dv-scroll");
+  if (sc) sc.style.overflow = "";
 }
 
 export function overlayRoot(): HTMLElement | null {

@@ -161,8 +161,9 @@ export function DeviceViewShell({ children }: { children: React.ReactNode }) {
   const mode = dv?.mode ?? "pc";
   return (
     <div className="dv-root" data-dv={mode} data-testid={mode === "dual" ? "dual-view" : undefined}>
-      <div className="dv-pc" data-scroll-root={mode === "dual" ? "true" : undefined} id="dv-pc">
-        {children}
+      <div className="dv-pc" id="dv-pc" data-dual={mode === "dual" ? "true" : undefined}>
+        {/* Dual에서는 이 내부 div만 스크롤한다. 고정 요소(Modal·Toast·Tour)의 기준(dv-pc)은 스크롤되지 않아 항상 화면 안에 뜬다. */}
+        <div className="dv-scroll" id="dv-scroll">{children}</div>
         <div id="overlay-root" />
       </div>
       {dv?.available && mode !== "pc" && <MobilePane stage={mode === "mobile"} />}
