@@ -7,10 +7,21 @@ import { Bell, Building2, ChevronDown, Clock3, FlaskConical, HardHat, Check, Use
 import { useStore } from "@/components/providers/StoreProvider";
 import { setRole, setStage, markAllNotificationsRead, markNotificationRead, setSimClock } from "@/lib/store/actions";
 import { ROLE_META, ROLE_ORDER } from "@/domain/permissions";
-import { fmtClock, fmtDate, kstDate, relativeKo, WEEKDAYS_KO, addMinutes, atKst, addDays } from "@/domain/time";
+import { fmtClock, fmtDate, kstDate, relativeKo, WEEKDAYS_KO, addMinutes, atKst, addDays, simNow } from "@/domain/time";
 import type { RoleId, Stage } from "@/domain/types";
 import { axActor } from "@/lib/store/actor";
 import { SIM_DEFAULT_CLOCK } from "@/domain/seed";
+
+/** 시뮬레이션 시각은 실제 시간만큼 흐른다 — 화면 표시는 15초마다 갱신 */
+export function useSimNow() {
+  const s = useStore();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((x) => x + 1), 15000);
+    return () => clearInterval(t);
+  }, []);
+  return simNow(s.simulation);
+}
 
 export function Brand({ compact = false, onDark = true }: { compact?: boolean; onDark?: boolean }) {
   return (
@@ -239,7 +250,7 @@ export function PropertyChip() {
 /** 미래 운영 시뮬레이션 배너 + 시뮬레이션 시각 제어 */
 export function SimulationBar() {
   const s = useStore();
-  const clock = s.simulation.clock;
+  const clock = useSimNow();
   const d = kstDate(clock);
   const actor = axActor(s);
   const presets: { label: string; iso: string; Icon: typeof CalendarClock }[] = [

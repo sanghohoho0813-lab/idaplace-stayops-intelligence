@@ -100,3 +100,10 @@ export function relativeKo(v: ISOInstant, now: ISOInstant | number = Date.now())
 export function nights(checkIn: ISODate, checkOut: ISODate): number {
   return diffDays(checkIn, checkOut);
 }
+
+/** 시뮬레이션 현재 시각 = 기준 시각 + (지금 - 기준 설정 시점). 같은 데모 안에서 경과시간이 실제와 같다. */
+export function simNow(sim: { clock: ISOInstant; anchoredAt?: ISOInstant }, realNow: number = Date.now()): ISOInstant {
+  if (!sim.anchoredAt) return new Date(toMs(sim.clock)).toISOString();
+  const drift = Math.max(0, realNow - toMs(sim.anchoredAt));
+  return new Date(toMs(sim.clock) + drift).toISOString();
+}

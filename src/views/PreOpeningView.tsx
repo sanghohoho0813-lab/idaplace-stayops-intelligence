@@ -254,7 +254,7 @@ export function TaskDetail({ task, onClose }: { task?: OpeningTask; onClose: () 
             <span><b>미완료 사유</b> — {task.blockedReason}</span>
           </div>
         )}
-        <div className="grid gap-3 @sm/shell:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="담당자" htmlFor="assignee">
             <select id="assignee" disabled={!editable || !open} className={inputCls} value={task.assigneeId ?? ""} onChange={(e) => updateTask(task.id, { assigneeId: e.target.value || undefined }, actor)} data-testid="task-assignee">
               <option value="">미지정</option>
@@ -301,7 +301,7 @@ export function TaskDetail({ task, onClose }: { task?: OpeningTask; onClose: () 
             </span>
           </button>
         )}
-        <div className="grid gap-3 @sm/shell:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="미완료 사유" htmlFor="blocked" hint="막힌 이유를 남기면 코치가 추적합니다.">
             <input id="blocked" disabled={!editable || !open} className={inputCls} defaultValue={task.blockedReason ?? ""} onBlur={(e) => e.target.value !== (task.blockedReason ?? "") && updateTask(task.id, { blockedReason: e.target.value }, actor)} placeholder="예: 자재 입고 대기" />
           </Field>
@@ -402,7 +402,7 @@ function CreateTask({ open, onClose, onCreated }: { open: boolean; onClose: () =
         <Field label="업무명" htmlFor="t-title" error={err} required>
           <input id="t-title" className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 로비 사인물 설치 확인" />
         </Field>
-        <div className="grid gap-3 @sm/shell:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="영역" htmlFor="t-cat">
             <select id="t-cat" className={inputCls} value={category} onChange={(e) => setCategory(e.target.value as OpeningCategory)}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_META[c].label}</option>)}

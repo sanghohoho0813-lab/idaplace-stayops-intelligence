@@ -35,6 +35,9 @@ const INSPECTION_CHECKLIST: [string, boolean][] = [
   ["객실 비품 수량 확인", true],
 ];
 
+/** 모든 Instant를 UTC ISO 형식으로 통일 (문자열 정렬·비교 일관성) */
+const I = (v: string) => new Date(v).toISOString();
+
 export function makeSeed(now: string = nowIso(), keepUi?: Partial<UiPrefs>): DemoState {
   const D: ISODate = kstDate(now);
   const ago = (min: number) => new Date(Date.parse(now) - min * 60000).toISOString();
@@ -108,13 +111,13 @@ export function makeSeed(now: string = nowIso(), keepUi?: Partial<UiPrefs>): Dem
     ...extra,
   });
 
-  const tok = () => ({ token: guestToken(), createdAt: ago(60 * 24), expiresAt: "2026-12-31T23:59:00+09:00", revoked: false });
+  const tok = () => ({ token: guestToken(), createdAt: ago(60 * 24), expiresAt: I("2026-12-31T23:59:00+09:00"), revoked: false });
   const reservations: Reservation[] = [
     R("res01", "DEMO-1104-01", "r101", "이서윤", "3812", 2, "2026-11-04", "2026-11-06", "CHECKED_IN", 178000,
-      { guestToken: tok(), checkedInAt: "2026-11-04T15:42:00+09:00", checkedInMethod: "SELF_QR" }),
+      { guestToken: tok(), checkedInAt: I("2026-11-04T15:42:00+09:00"), checkedInMethod: "SELF_QR" }),
     R("res02", "DEMO-1105-02", "r201", "박도현", "5527", 2, "2026-11-05", "2026-11-07", "CONFIRMED", 178000, { guestToken: tok() }),
     R("res03", "DEMO-1103-03", "r102", "최유나", "9034", 2, "2026-11-03", "2026-11-05", "CHECKED_OUT", 168000,
-      { checkedInAt: "2026-11-03T16:05:00+09:00", checkedInMethod: "SELF_QR", checkedOutAt: "2026-11-05T10:48:00+09:00" }),
+      { checkedInAt: I("2026-11-03T16:05:00+09:00"), checkedInMethod: "SELF_QR", checkedOutAt: I("2026-11-05T10:48:00+09:00") }),
     R("res04", "DEMO-1105-04", "r102", "한지민", "2240", 1, "2026-11-05", "2026-11-06", "CONFIRMED", 84000, { guestToken: tok() }),
     R("res05", "DEMO-1106-05", "r203", "정우진", "7615", 3, "2026-11-06", "2026-11-07", "CONFIRMED", 109000, { guestToken: tok() }),
     R("res06", "DEMO-1107-06", "r202", "윤가람", "4408", 4, "2026-11-07", "2026-11-09", "CONFIRMED", 258000, { guestToken: tok() }),
@@ -125,38 +128,39 @@ export function makeSeed(now: string = nowIso(), keepUi?: Partial<UiPrefs>): Dem
     {
       id: "ag01", propertyId: PROPERTY_ID, reservationId: "res01", roomId: "r101", lockDeviceId: "lock101", provider: "DEMO", status: "DEMO_CONFIRMED",
       startsAt: atKst("2026-11-04", "15:00"), endsAt: atKst("2026-11-06", "11:00"), idempotencyKey: `seed-ag01-${randomString(6)}`, providerRef: "demo_seed_ag01",
-      demoCode: g1Code, attempt: 1, createdAt: "2026-11-04T15:40:00+09:00", updatedAt: "2026-11-04T15:41:10+09:00",
+      demoCode: g1Code, attempt: 1, createdAt: I("2026-11-04T15:40:00+09:00"), updatedAt: I("2026-11-04T15:41:10+09:00"),
       history: [
-        { at: "2026-11-04T15:40:00+09:00", status: "PENDING", provider: "DEMO", method: "DEMO_SIMULATION", note: "체크인 승인 후 출입권한 요청", by: "system" },
-        { at: "2026-11-04T15:40:02+09:00", status: "DEMO_PROVISIONED", provider: "DEMO", method: "DEMO_SIMULATION", note: "Demo Provider 요청 수락 (기기 적용 대기)", by: "system" },
-        { at: "2026-11-04T15:41:10+09:00", status: "DEMO_CONFIRMED", provider: "DEMO", method: "DEMO_SIMULATION", note: "가상 적용 확인 — 실제 도어락 미연동", by: "system" },
+        { at: I("2026-11-04T15:40:00+09:00"), status: "PENDING", provider: "DEMO", method: "DEMO_SIMULATION", note: "체크인 승인 후 출입권한 요청", by: "system" },
+        { at: I("2026-11-04T15:40:02+09:00"), status: "DEMO_PROVISIONED", provider: "DEMO", method: "DEMO_SIMULATION", note: "Demo Provider 요청 수락 (기기 적용 대기)", by: "system" },
+        { at: I("2026-11-04T15:41:10+09:00"), status: "DEMO_CONFIRMED", provider: "DEMO", method: "DEMO_SIMULATION", note: "가상 적용 확인 — 실제 도어락 미연동", by: "system" },
       ],
     },
   ];
 
   const hk = (id: string, roomId: string, type: HousekeepingJob["type"], assigneeId: string, list: [string, boolean][], extra: Partial<HousekeepingJob> = {}): HousekeepingJob => ({
     id, propertyId: PROPERTY_ID, roomId, type, status: "PENDING", assigneeId, checklist: cl(list), photos: [], source: "SEED",
-    createdAt: "2026-11-05T10:50:00+09:00", updatedAt: "2026-11-05T10:50:00+09:00", ...extra,
+    createdAt: I("2026-11-05T10:50:00+09:00"), updatedAt: I("2026-11-05T10:50:00+09:00"), ...extra,
   });
   const housekeepingJobs: HousekeepingJob[] = [
     hk("hk01", "r102", "CHECKOUT_CLEAN", "s2", HOUSEKEEPING_CHECKLIST, { reservationId: "res03", source: "AUTO_CHECKOUT", dueBy: atKst("2026-11-05", "15:00") }),
-    hk("hk02", "r101", "STAYOVER", "s2", [["수건·어메니티 교체", true], ["쓰레기 수거", true]], { reservationId: "res01", createdAt: "2026-11-05T09:00:00+09:00" }),
-    hk("hk03", "r202", "INSPECTION", "s1", INSPECTION_CHECKLIST, { createdAt: "2026-11-05T09:10:00+09:00", dueBy: atKst("2026-11-06", "18:00") }),
+    hk("hk02", "r101", "STAYOVER", "s2", [["수건·어메니티 교체", true], ["쓰레기 수거", true]], { reservationId: "res01", createdAt: I("2026-11-05T09:00:00+09:00") }),
+    hk("hk03", "r202", "INSPECTION", "s1", INSPECTION_CHECKLIST, { createdAt: I("2026-11-05T09:10:00+09:00"), dueBy: atKst("2026-11-06", "18:00") }),
   ];
 
+  const simAgo = (min: number) => new Date(Date.parse(sim) - min * 60000).toISOString();
   const guestRequests: GuestRequest[] = [
     {
       id: "gq01", propertyId: PROPERTY_ID, reservationId: "res01", roomId: "r101", category: "AMENITY", status: "NEW",
-      messages: [{ id: "m1", by: "GUEST", authorName: "이○윤", text: "수건 2장 추가로 받을 수 있을까요?", at: ago(14) }],
-      createdAt: ago(14), updatedAt: ago(14),
+      messages: [{ id: "m1", by: "GUEST", authorName: "이○윤", text: "수건 2장 추가로 받을 수 있을까요?", at: simAgo(14) }],
+      createdAt: simAgo(14), updatedAt: simAgo(14),
     },
     {
       id: "gq02", propertyId: PROPERTY_ID, reservationId: "res01", roomId: "r101", category: "QUESTION", status: "RESOLVED",
       messages: [
-        { id: "m1", by: "GUEST", authorName: "이○윤", text: "차를 가져왔는데 주차 가능한가요?", at: ago(60 * 20) },
-        { id: "m2", by: "STAFF", authorName: "운영팀", text: "건물 뒤편 주차 공간을 이용하실 수 있습니다. (데모 안내 문구)", at: ago(60 * 20 - 6) },
+        { id: "m1", by: "GUEST", authorName: "이○윤", text: "차를 가져왔는데 주차 가능한가요?", at: simAgo(60 * 20) },
+        { id: "m2", by: "STAFF", authorName: "운영팀", text: "건물 뒤편 주차 공간을 이용하실 수 있습니다. (데모 안내 문구)", at: simAgo(60 * 20 - 6) },
       ],
-      createdAt: ago(60 * 20), updatedAt: ago(60 * 20 - 6), resolvedAt: ago(60 * 20 - 6), handledBy: "m1",
+      createdAt: simAgo(60 * 20), updatedAt: simAgo(60 * 20 - 6), resolvedAt: simAgo(60 * 20 - 6), handledBy: "m1",
     },
   ];
 
@@ -215,7 +219,7 @@ export function makeSeed(now: string = nowIso(), keepUi?: Partial<UiPrefs>): Dem
       { id: "n1", at: ago(60 * 2), level: "WARN", title: "오늘 마감 업무", body: "203호 도어락 설치 점검이 오늘 마감입니다.", link: "/pre-opening?task=pt08", read: false, audience: "ALL" },
       { id: "n2", at: ago(60 * 5), level: "URGENT", title: "필수 업무 지연", body: "202호 욕실 실리콘 보수 확인이 1일 지연되었습니다.", link: "/pre-opening?task=pt07", read: false, audience: "OPS" },
     ],
-    simulation: { clock: sim, nextProvisionOutcome: "SUCCESS", nextRevokeOutcome: "SUCCESS" },
+    simulation: { clock: I(sim), anchoredAt: now, nextProvisionOutcome: "SUCCESS", nextRevokeOutcome: "SUCCESS" },
     ui,
     counters: { checklistToggles: 0, tasksCompleted: 0, reservationsCreated: 0, conflictsBlocked: 0, selfCheckins: 0, accessFailures: 0, demoResets: 0 },
   };

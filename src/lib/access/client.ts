@@ -10,12 +10,15 @@ import { commit, getSnapshot } from "@/lib/store/repository";
 import type { Actor } from "@/lib/store/actor";
 import { SYSTEM } from "@/lib/store/actor";
 import { canTransitionAccess, FAILURE_LABEL, isInFlight } from "@/domain/access";
-import { atKst, nowIso } from "@/domain/time";
+import { atKst, nowIso, simNow } from "@/domain/time";
 import { uid, randomString } from "@/domain/ids";
 import { maskCode } from "@/domain/format";
 import type { AccessConfig, ProvisionResult, RevokeResult, StatusResult } from "./contract";
 
 type D = Draft<DemoState>;
+
+/** 시뮬레이션 영역 기록 시각 */
+const simTs = () => simNow(getSnapshot().simulation);
 
 function transition(d: D, grantId: string, to: AccessStatus, note: string, by: string) {
   const g = d.accessGrants.find((x) => x.id === grantId);
@@ -26,8 +29,8 @@ function transition(d: D, grantId: string, to: AccessStatus, note: string, by: s
     return false;
   }
   g.status = to;
-  g.updatedAt = nowIso();
-  g.history.push({ at: nowIso(), status: to, provider: "DEMO", method: "DEMO_SIMULATION", note, by });
+  g.updatedAt = simTs();
+  g.history.push({ at: simTs(), status: to, provider: "DEMO", method: "DEMO_SIMULATION", note, by });
   return true;
 }
 
@@ -90,8 +93,8 @@ export async function requestAccess(reservationId: string, actor: Actor): Promis
   commit((d) => {
     d.accessGrants.unshift({
       id: grantId, propertyId: d.property.id, reservationId, roomId: r.roomId, lockDeviceId: room.lockDeviceId, provider: "DEMO", status: "PENDING",
-      startsAt, endsAt, idempotencyKey, attempt, createdAt: nowIso(), updatedAt: nowIso(),
-      history: [{ at: nowIso(), status: "PENDING", provider: "DEMO", method: "DEMO_SIMULATION", note: `출입권한 발급 요청 (${attempt}차)`, by: actor.id }],
+      startsAt, endsAt, idempotencyKey, attempt, createdAt: simTs(), updatedAt: simTs(),
+      history: [{ at: simTs(), status: "PENDING", provider: "DEMO", method: "DEMO_SIMULATION", note: `출입권한 발급 요청 (${attempt}차)`, by: actor.id }],
     });
     // 시연용 실패 지정은 '다음 1회 요청'에만 적용
     d.simulation.nextProvisionOutcome = "SUCCESS";
@@ -157,9 +160,9 @@ export async function reconcileAccess() {
             const r = d.reservations.find((y) => y.id === x.reservationId);
             if (r && r.status === "CHECKIN_PENDING_ACCESS") {
               r.status = "CHECKED_IN";
-              r.checkedInAt = nowIso();
+              r.checkedInAt = simTs();
               r.checkedInMethod = "SELF_QR";
-              r.updatedAt = nowIso();
+              r.updatedAt = simTs();
               const room = d.rooms.find((y) => y.id === r.roomId);
               if (room && room.opStatus === "VACANT_READY") {
                 room.opStatus = "OCCUPIED";
@@ -281,9 +284,9 @@ export function resolveIncidentManually(incidentId: string, note: string, actor:
       }
       if (r && r.status === "CHECKIN_PENDING_ACCESS") {
         r.status = "CHECKED_IN";
-        r.checkedInAt = nowIso();
+        r.checkedInAt = simTs();
         r.checkedInMethod = "MANUAL_STAFF";
-        r.updatedAt = nowIso();
+        r.updatedAt = simTs();
         if (room && room.opStatus === "VACANT_READY") room.opStatus = "OCCUPIED";
       }
       inc.resolution = "MANUAL_ENTRY_SUPPORT";

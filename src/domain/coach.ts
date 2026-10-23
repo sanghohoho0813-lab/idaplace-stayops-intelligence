@@ -3,7 +3,7 @@
  * 경고·우선순위·중복예약 판정은 결정론적 규칙으로만 수행한다. (LLM이 숫자·충돌·기기 성공 여부를 결정하지 않음)
  */
 import type { DemoState, ISODate, RecommendationRecord, RecStatus, Severity } from "./types";
-import { diffDays, fmtDateKo, kstDate, kstTime, minutesBetween, toMs } from "./time";
+import { diffDays, fmtDateKo, kstDate, kstTime, minutesBetween, simNow, toMs } from "./time";
 import { CATEGORY_META, isOpen, readiness, readinessByCategory, requiredChecklistDone, taskProgress } from "./readiness";
 import { findConflicts, nextArrival, occupies } from "./reservations";
 import { ACCESS_LABEL, FAILURE_LABEL } from "./access";
@@ -120,7 +120,7 @@ export function preOpeningSignals(state: DemoState, today: ISODate): CoachSignal
 
 export function operationsSignals(state: DemoState): CoachSignal[] {
   const out: CoachSignal[] = [];
-  const clock = state.simulation.clock;
+  const clock = simNow(state.simulation);
   const today = kstDate(clock);
   const room = (id: string) => state.rooms.find((r) => r.id === id);
   for (const g of state.accessGrants) {
@@ -164,7 +164,7 @@ export function operationsSignals(state: DemoState): CoachSignal[] {
   }
   for (const q of state.guestRequests) {
     if (q.status !== "NEW") continue;
-    const wait = Math.round((Date.now() - toMs(q.createdAt)) / 60000);
+    const wait = Math.round((toMs(clock) - toMs(q.createdAt)) / 60000);
     if (wait < 10) continue;
     out.push({
       key: `OP-REQUEST-WAITING:${q.id}`, ruleId: "OP-REQUEST-WAITING", ruleLabel: RULES["OP-REQUEST-WAITING"].label, scope: "OPERATIONS", severity: "MEDIUM",

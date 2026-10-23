@@ -11,7 +11,7 @@ import { CATEGORY_META, isOpen, openingSummary, readinessByCategory, taskProgres
 import { coachItems, ruleNarrative } from "@/domain/coach";
 import { dday, manwon, maskName } from "@/domain/format";
 import { can } from "@/domain/permissions";
-import { fmtDateKo, kstDate } from "@/domain/time";
+import { fmtDateKo, kstDate, simNow } from "@/domain/time";
 import { roomDisplayStatus, ROOM_DISPLAY } from "@/domain/rooms";
 import { nextArrival } from "@/domain/reservations";
 import { ActivityList, ContextBanner, Donut, Freshness, Notice, RoomStatusBadge, TaskStatusBadge, staffName, useTodayKst, AccessBadge, HK_STATUS, HK_TYPE_LABEL, roomNo } from "./shared";
@@ -247,7 +247,7 @@ function PreOpeningDashboard() {
 
 function SimDashboard() {
   const s = useStore();
-  const clock = s.simulation.clock;
+  const clock = simNow(s.simulation);
   const today = kstDate(clock);
   const arrivals = s.reservations.filter((r) => r.checkIn === today && (r.status === "CONFIRMED" || r.status === "CHECKIN_PENDING_ACCESS"));
   const inHouse = s.reservations.filter((r) => r.status === "CHECKED_IN");

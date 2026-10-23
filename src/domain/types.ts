@@ -353,7 +353,9 @@ export type ProvisionOutcome = "SUCCESS" | "APPLY_FAIL" | "NO_RESPONSE";
 export type RevokeOutcome = "SUCCESS" | "FAIL";
 
 export interface SimulationState {
+  /** 시뮬레이션 기준 시각 (anchoredAt 시점의 가상 시각). 이후 실제 경과시간만큼 함께 흐른다. */
   clock: ISOInstant;
+  anchoredAt?: ISOInstant;
   nextProvisionOutcome: ProvisionOutcome;
   nextRevokeOutcome: RevokeOutcome;
 }

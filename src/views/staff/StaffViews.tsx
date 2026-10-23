@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { isOpen, requiredChecklistDone, taskProgress, CATEGORY_META } from "@/domain/readiness";
 import { dday } from "@/domain/format";
 import { isCoachPriority } from "@/domain/coach";
-import { fmtClock, fmtDateKo, kstDate } from "@/domain/time";
+import { fmtClock, fmtDateKo, kstDate, simNow } from "@/domain/time";
 import { addJobPhoto, addTaskPhoto, completeJob, completeTask, startJob, toggleChecklist, toggleJobChecklist, updateTask } from "@/lib/store/actions";
 import { staffActor } from "@/lib/store/actor";
 import type { HousekeepingJob, OpeningTask } from "@/domain/types";
@@ -273,7 +273,7 @@ function StaffJob({ j }: { j: HousekeepingJob }) {
   const room = s.rooms.find((r) => r.id === j.roomId)!;
   const ready = j.checklist.filter((c) => c.required).every((c) => c.done);
   const active = j.status === "PENDING" || j.status === "IN_PROGRESS";
-  const today = kstDate(s.simulation.clock);
+  const today = kstDate(simNow(s.simulation));
   const next = nextArrival(s.reservations, room.id, today);
   return (
     <div className="space-y-4" data-testid="staff-job-detail">
@@ -334,7 +334,7 @@ function StaffJob({ j }: { j: HousekeepingJob }) {
 export function StaffRoomsView() {
   const s = useStore();
   const [tab, setTab] = useState<"ops" | "pre">(s.ui.stage === "SIMULATION" ? "ops" : "pre");
-  const today = kstDate(s.simulation.clock);
+  const today = kstDate(simNow(s.simulation));
   return (
     <div className="space-y-4" data-testid="staff-rooms">
       <h1 className="text-[1.35rem] font-extrabold">객실</h1>

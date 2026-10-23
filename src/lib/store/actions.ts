@@ -14,7 +14,7 @@ import { commit, replaceState, getSnapshot } from "./repository";
 import type { Actor } from "./actor";
 import { SYSTEM } from "./actor";
 import { uid, guestToken, digits } from "@/domain/ids";
-import { addDays, atKst, kstDate, minutesBetween, nowIso, toMs } from "@/domain/time";
+import { addDays, atKst, kstDate, minutesBetween, nowIso, simNow, toMs } from "@/domain/time";
 import { maskName, maskPhone } from "@/domain/format";
 import { readiness, requiredChecklistDone, roomPrepFromTasks, CATEGORY_META } from "@/domain/readiness";
 import { validateDraft, type ReservationDraft, type DraftError } from "@/domain/reservations";
@@ -25,6 +25,11 @@ import { makeSeed, HOUSEKEEPING_CHECKLIST } from "@/domain/seed";
 type D = Draft<DemoState>;
 
 // ───────── 공통 헬퍼 ─────────
+
+/** 시뮬레이션 영역(예약·체크인·청소·문의) 기록은 시뮬레이션 시각으로 남긴다 */
+function simTsNow(): string {
+  return simNow(getSnapshot().simulation);
+}
 
 function log(d: D, actor: Actor, type: string, message: string, entity?: { type: string; id: string }, sensitive = false) {
   d.activity.unshift({ id: uid("act"), at: nowIso(), actor: actor.name, actorRole: actor.role, type, message, entity, sensitive });
@@ -409,7 +414,7 @@ export function findReservationByToken(s: DemoState, token: string) {
   const r = s.reservations.find((x) => x.guestToken?.token === token);
   if (!r || !r.guestToken) return { reservation: undefined, reason: "NOT_FOUND" as const };
   if (r.guestToken.revoked) return { reservation: r, reason: "REVOKED" as const };
-  if (toMs(r.guestToken.expiresAt) < Date.now() && toMs(r.guestToken.expiresAt) < toMs(s.simulation.clock)) return { reservation: r, reason: "EXPIRED" as const };
+  if (toMs(r.guestToken.expiresAt) < Date.now() && toMs(r.guestToken.expiresAt) < toMs(simNow(s.simulation))) return { reservation: r, reason: "EXPIRED" as const };
   return { reservation: r, reason: "OK" as const };
 }
 
@@ -505,7 +510,7 @@ export function evaluateCheckinEligibility(s: DemoState, reservationId: string, 
   const r = s.reservations.find((x) => x.id === reservationId);
   const room = r && s.rooms.find((x) => x.id === r.roomId);
   const cs = sessionId ? s.checkinSessions.find((x) => x.id === sessionId) : undefined;
-  const clock = s.simulation.clock;
+  const clock = simNow(s.simulation);
   const startsAt = r ? atKst(r.checkIn, s.property.checkInTime) : "";
   const endsAt = r ? atKst(r.checkOut, s.property.checkOutTime) : "";
   const checks = [
@@ -526,10 +531,10 @@ export function approveCheckin(sessionId: string, actor: Actor): { ok: boolean; 
   if (!ev.ok) return { ok: false, message: ev.checks.filter((c) => !c.ok).map((c) => c.label).join(", ") + " 조건을 확인하세요." };
   commit((d) => {
     const c = d.checkinSessions.find((x) => x.id === sessionId)!;
-    c.approvedAt = nowIso();
+    c.approvedAt = simTsNow();
     const r = d.reservations.find((x) => x.id === cs.reservationId)!;
     r.status = "CHECKIN_PENDING_ACCESS";
-    r.updatedAt = nowIso();
+    r.updatedAt = simTsNow();
     log(d, actor, "CHECKIN_APPROVED", `셀프 체크인 승인 ${r.code} · ${roomNo(d, r.roomId)}호 — 출입권한 요청 진행`, { type: "RESERVATION", id: r.id });
   });
   return { ok: true, message: "체크인 승인 — 출입코드를 준비하고 있습니다.", reservationId: cs.reservationId };
@@ -545,17 +550,17 @@ export function checkout(reservationId: string, actor: Actor): { ok: boolean; me
   commit((d) => {
     const r = d.reservations.find((x) => x.id === reservationId)!;
     r.status = "CHECKED_OUT";
-    r.checkedOutAt = nowIso();
-    r.updatedAt = nowIso();
+    r.checkedOutAt = simTsNow();
+    r.updatedAt = simTsNow();
     const room = d.rooms.find((x) => x.id === r.roomId)!;
     assertRoomTransition(room.opStatus, "DIRTY");
     room.opStatus = "DIRTY";
-    room.updatedAt = nowIso();
+    room.updatedAt = simTsNow();
     const assignee = d.staff.find((x) => x.team === "HOUSEKEEPING")?.id;
     d.housekeepingJobs.unshift({
       id: jobId, propertyId: d.property.id, roomId: r.roomId, reservationId: r.id, type: "CHECKOUT_CLEAN", status: "PENDING", assigneeId: assignee,
       checklist: HOUSEKEEPING_CHECKLIST.map(([label, required], i) => ({ id: `c${i + 1}`, label, required, done: false })), photos: [],
-      source: "AUTO_CHECKOUT", createdAt: nowIso(), updatedAt: nowIso(),
+      source: "AUTO_CHECKOUT", createdAt: simTsNow(), updatedAt: simTsNow(),
     });
     log(d, actor, "CHECKOUT", `[DEMO] 가상 체크아웃 ${r.code} · ${room.number}호 → 청소 작업 자동 생성 (담당 ${staffName(d, assignee)})`, { type: "RESERVATION", id: r.id });
     notify(d, { level: "WARN", title: "청소 요청 생성", body: `${room.number}호 체크아웃 — 청소 대기 · 담당 ${staffName(d, assignee)}`, link: `/staff/tasks/${jobId}`, audience: "ALL" });
@@ -579,13 +584,13 @@ export function startJob(jobId: string, actor: Actor) {
     const j = d.housekeepingJobs.find((x) => x.id === jobId);
     if (!j || j.status !== "PENDING") return;
     j.status = "IN_PROGRESS";
-    j.startedAt = nowIso();
+    j.startedAt = simTsNow();
     if (!j.assigneeId && actor.role === "STAFF") j.assigneeId = actor.id;
-    j.updatedAt = nowIso();
+    j.updatedAt = simTsNow();
     const room = d.rooms.find((x) => x.id === j.roomId)!;
     if (j.type === "CHECKOUT_CLEAN" && room.opStatus === "DIRTY") {
       room.opStatus = "CLEANING";
-      room.updatedAt = nowIso();
+      room.updatedAt = simTsNow();
     }
     log(d, actor, "HK_START", `${room.number}호 ${j.type === "INSPECTION" ? "점검" : "청소"} 시작`, { type: "HOUSEKEEPING", id: j.id });
   });
@@ -599,14 +604,14 @@ export function toggleJobChecklist(jobId: string, itemId: string, actor: Actor) 
     if (!it) return;
     if (j.status === "PENDING") {
       j.status = "IN_PROGRESS";
-      j.startedAt = nowIso();
+      j.startedAt = simTsNow();
       const room = d.rooms.find((x) => x.id === j.roomId)!;
       if (j.type === "CHECKOUT_CLEAN" && room.opStatus === "DIRTY") room.opStatus = "CLEANING";
     }
     it.done = !it.done;
-    it.doneAt = it.done ? nowIso() : undefined;
+    it.doneAt = it.done ? simTsNow() : undefined;
     it.doneBy = it.done ? actor.id : undefined;
-    j.updatedAt = nowIso();
+    j.updatedAt = simTsNow();
     d.counters.checklistToggles++;
   });
 }
@@ -615,14 +620,14 @@ export function addJobPhoto(jobId: string, actor: Actor) {
   commit((d) => {
     const j = d.housekeepingJobs.find((x) => x.id === jobId);
     if (!j) return;
-    j.photos.push({ id: uid("ph"), label: `정비 사진 ${j.photos.length + 1} (데모)`, addedAt: nowIso(), addedBy: actor.id, demo: true });
+    j.photos.push({ id: uid("ph"), label: `정비 사진 ${j.photos.length + 1} (데모)`, addedAt: simTsNow(), addedBy: actor.id, demo: true });
     const it = j.checklist.find((c) => c.label.includes("사진"));
     if (it && !it.done) {
       it.done = true;
-      it.doneAt = nowIso();
+      it.doneAt = simTsNow();
       it.doneBy = actor.id;
     }
-    j.updatedAt = nowIso();
+    j.updatedAt = simTsNow();
   });
 }
 
@@ -637,15 +642,15 @@ export function completeJob(jobId: string, actor: Actor, memo?: string): { ok: b
     const room = d.rooms.find((x) => x.id === j.roomId)!;
     const before = room.opStatus;
     j.status = "DONE";
-    j.completedAt = nowIso();
+    j.completedAt = simTsNow();
     if (!j.startedAt) j.startedAt = j.completedAt;
     if (memo?.trim()) j.memo = memo.trim();
-    j.updatedAt = nowIso();
+    j.updatedAt = simTsNow();
     if (j.type === "CHECKOUT_CLEAN" && (room.opStatus === "CLEANING" || room.opStatus === "DIRTY")) {
       if (room.opStatus === "DIRTY") room.opStatus = "CLEANING";
       assertRoomTransition(room.opStatus, "VACANT_READY");
       room.opStatus = "VACANT_READY";
-      room.updatedAt = nowIso();
+      room.updatedAt = simTsNow();
     }
     const rec = closeRecs(d, room.id, actor.name, "청소 완료로 자동 종료");
     const mins = minutesBetween(j.createdAt, j.completedAt);
@@ -667,7 +672,7 @@ export function completeJob(jobId: string, actor: Actor, memo?: string): { ok: b
         kpi_note: `작업 생성→완료 ${mins}분 (데모 진행 중 실제 경과시간 · 운영 KPI 아님)`,
         data_source: "DEMO_SIMULATION",
         user_id: actor.id,
-        result_confirmed_at: nowIso(),
+        result_confirmed_at: simTsNow(),
         evidence_link: `/operations?tab=housekeeping&job=${j.id}`,
         related: [{ type: "HOUSEKEEPING", id: j.id }, { type: "ROOM", id: room.id }, ...(res ? [{ type: "RESERVATION", id: res.id }] : [])],
       });
@@ -688,8 +693,8 @@ export function createGuestRequest(reservationId: string, category: GuestRequest
   commit((d) => {
     d.guestRequests.unshift({
       id, propertyId: d.property.id, reservationId, roomId: r.roomId, category, status: "NEW",
-      messages: [{ id: uid("msg"), by: "GUEST", authorName: maskName(r.guestName), text: text.trim(), at: nowIso() }],
-      createdAt: nowIso(), updatedAt: nowIso(),
+      messages: [{ id: uid("msg"), by: "GUEST", authorName: maskName(r.guestName), text: text.trim(), at: simTsNow() }],
+      createdAt: simTsNow(), updatedAt: simTsNow(),
     });
     log(d, actor, "GUEST_REQUEST", `고객 문의 접수 · ${roomNo(d, r.roomId)}호 · ${text.trim().slice(0, 30)}`, { type: "GUEST_REQUEST", id });
     notify(d, { level: "WARN", title: "새 고객 문의", body: `${roomNo(d, r.roomId)}호 — ${text.trim().slice(0, 40)}`, link: `/operations?tab=requests&q=${id}`, audience: "ALL" });
@@ -702,12 +707,12 @@ export function replyGuestRequest(id: string, text: string, status: GuestRequest
     const q = d.guestRequests.find((x) => x.id === id);
     if (!q) return;
     const prev = q.status;
-    if (text.trim()) q.messages.push({ id: uid("msg"), by: "STAFF", authorName: "운영팀", text: text.trim(), at: nowIso() });
+    if (text.trim()) q.messages.push({ id: uid("msg"), by: "STAFF", authorName: "운영팀", text: text.trim(), at: simTsNow() });
     q.status = status;
     q.handledBy = actor.id;
-    q.updatedAt = nowIso();
+    q.updatedAt = simTsNow();
     if (status === "RESOLVED" && prev !== "RESOLVED") {
-      q.resolvedAt = nowIso();
+      q.resolvedAt = simTsNow();
       closeRecs(d, q.id, actor.name, "문의 처리 완료");
       const mins = minutesBetween(q.createdAt, q.resolvedAt);
       proof(d, {
@@ -724,7 +729,7 @@ export function replyGuestRequest(id: string, text: string, status: GuestRequest
         kpi_note: `접수→처리 ${mins}분 (데모 경과시간 · 운영 KPI 아님)`,
         data_source: "DEMO_SIMULATION",
         user_id: actor.id,
-        result_confirmed_at: nowIso(),
+        result_confirmed_at: simTsNow(),
         evidence_link: `/operations?tab=requests&q=${q.id}`,
         related: [{ type: "GUEST_REQUEST", id: q.id }],
       });
@@ -737,9 +742,9 @@ export function guestFollowUp(id: string, text: string, guestName: string) {
   commit((d) => {
     const q = d.guestRequests.find((x) => x.id === id);
     if (!q || !text.trim()) return;
-    q.messages.push({ id: uid("msg"), by: "GUEST", authorName: maskName(guestName), text: text.trim(), at: nowIso() });
+    q.messages.push({ id: uid("msg"), by: "GUEST", authorName: maskName(guestName), text: text.trim(), at: simTsNow() });
     if (q.status === "RESOLVED") q.status = "IN_PROGRESS";
-    q.updatedAt = nowIso();
+    q.updatedAt = simTsNow();
   });
 }
 
@@ -748,6 +753,7 @@ export function guestFollowUp(id: string, text: string, guestName: string) {
 export function setSimClock(iso: ISOInstant, actor: Actor) {
   commit((d) => {
     d.simulation.clock = new Date(iso).toISOString();
+    d.simulation.anchoredAt = nowIso();
     log(d, actor, "SIM_CLOCK", `시뮬레이션 시각 변경 → ${kstDate(iso)} ${new Date(toMs(iso) + 9 * 3600000).toISOString().slice(11, 16)}`);
   });
 }

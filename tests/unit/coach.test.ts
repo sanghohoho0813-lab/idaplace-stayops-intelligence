@@ -30,6 +30,10 @@ describe("규칙 기반 운영 코치 (시뮬레이션)", () => {
     const sig = operationsSignals(seed);
     expect(sig.some((s) => s.ruleId === "OP-CLEAN-BEFORE-ARRIVAL" && s.targetId === "r102")).toBe(true);
   });
+  it("10분 이상 응답 없는 고객 문의를 감지 (시뮬레이션 시각 기준)", () => {
+    const sig = operationsSignals(seed);
+    expect(sig.find((s) => s.ruleId === "OP-REQUEST-WAITING")?.title).toContain("14분");
+  });
   it("Seed에는 중복 예약이 없다", () => {
     expect(doubleBookingCount(seed)).toBe(0);
   });
