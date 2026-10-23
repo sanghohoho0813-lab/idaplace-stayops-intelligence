@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────── Typography — Executive Readability First (Master v4.0 §2) ─────────
+   Root 19px(기본) / 17px(작게) / 21px(크게). 모바일은 한 단계 낮추되 과도하게 줄이지 않는다. */
+html {
+  font-size: 19px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+html[data-font="SM"] { font-size: 17px; }
+html[data-font="LG"] { font-size: 21px; }
+@media (max-width: 639px) {
+  html { font-size: 17px; }
+  html[data-font="SM"] { font-size: 16px; }
+  html[data-font="LG"] { font-size: 19px; }
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "tnum" 0;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  :focus-visible {
+    outline: 3px solid rgb(var(--theme-primary) / 0.55);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
+  input, select, textarea { font-size: max(16px, 0.9rem); }
+}
+
+@layer components {
+  .card {
+    @apply rounded-card border border-line bg-surface shadow-card;
+  }
+  .card-hover {
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out, border-color 160ms ease-out, background-color 160ms ease-out;
+  }
+  @media (hover: hover) {
+    .card-hover:hover {
+      transform: translateY(-2px);
+      @apply shadow-raised border-line-strong;
+    }
+    .row-hover:hover { background-color: rgb(var(--theme-soft) / 0.55); }
+  }
+  .card-hover:active { transform: translateY(0) scale(0.995); }
+  .row-hover { transition: background-color 140ms ease-out; }
+  .press { transition: transform 120ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out; }
+  .press:active { transform: scale(0.97); }
+  .skeleton {
+    background: linear-gradient(90deg, rgb(var(--neutral-border) / 0.55) 0px, rgb(var(--neutral-surface-2)) 120px, rgb(var(--neutral-border) / 0.55) 240px);
+    background-size: 800px 100%;
+    @apply animate-shimmer rounded-xl;
+  }
+  .scrollbar-thin { scrollbar-width: thin; }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+}
+
+/* ───────── Device View (Master v4.1) ───────── */
+.dv-root[data-dv="dual"] {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.dv-root[data-dv="dual"] > .dv-pc {
+  flex: 1 1 67%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: clip;
+  /* 고정 요소(Modal·Toast·Bottom Nav)가 PC 영역 안에서만 뜨도록 containing block 생성 */
+  transform: translateZ(0);
+  contain: layout paint;
+}
+.dv-root[data-dv="mobile"] > .dv-pc { display: none; }
+.dv-root[data-dv="pc"] > .dv-pc { min-height: 100vh; }
+
+/* ───────── Motion — 줄이기 설정 ───────── */
+html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+html[data-motion="reduce"] .card-hover:hover { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .card-hover:hover { transform: none !important; }
+}
+
+/* Mobile frame 안: 스크롤바 숨김 */
+html[data-frame="mobile"] { scrollbar-width: none; }
+html[data-frame="mobile"]::-webkit-scrollbar { display: none; }
