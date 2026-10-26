@@ -3,7 +3,7 @@
  * 경고·우선순위·중복예약 판정은 결정론적 규칙으로만 수행한다. (LLM이 숫자·충돌·기기 성공 여부를 결정하지 않음)
  */
 import type { DemoState, ISODate, RecommendationRecord, RecStatus, Severity } from "./types";
-import { diffDays, fmtDateKo, kstDate, kstTime, minutesBetween, simNow, toMs } from "./time";
+import { atKst, diffDays, fmtDateKo, kstDate, kstTime, minutesBetween, simNow, toMs } from "./time";
 import { CATEGORY_META, isOpen, readiness, readinessByCategory, requiredChecklistDone, taskProgress } from "./readiness";
 import { findConflicts, nextArrival, occupies } from "./reservations";
 import { ACCESS_LABEL, FAILURE_LABEL } from "./access";
@@ -51,7 +51,7 @@ export const RULES: Record<string, { label: string; scope: "PRE_OPENING" | "OPER
   "PO-CATEGORY-LAG": { label: "준비 영역 병목", scope: "PRE_OPENING", desc: "특정 영역 준비율이 전체 대비 20%p 이상 낮음" },
   "OP-ACCESS-FAILED": { label: "출입권한 적용 실패", scope: "OPERATIONS", desc: "Provider 실패/미응답 — 고객 입실 영향" },
   "OP-CLEAN-BEFORE-ARRIVAL": { label: "입실 전 청소 미완료", scope: "OPERATIONS", desc: "오늘 입실 예정 객실이 청소 필요/청소중" },
-  "OP-CHECKIN-LATE": { label: "체크인 미완료", scope: "OPERATIONS", desc: "입실 가능 시각 3시간 경과 후에도 체크인 전" },
+  "OP-CHECKIN-LATE": { label: "체크인 미완료", scope: "OPERATIONS", desc: "입실 가능 시각 3시간 경과 후에도 체크인 전 (입실일이 지났으면 노쇼 확인)" },
   "OP-REQUEST-WAITING": { label: "고객 문의 응답 대기", scope: "OPERATIONS", desc: "접수 후 10분 이상 미응답" },
   "OP-DOUBLE-BOOKING": { label: "중복 예약 감지", scope: "OPERATIONS", desc: "같은 객실·기간 점유 예약 2건 이상" },
 };
@@ -83,9 +83,14 @@ export function preOpeningSignals(state: DemoState, today: ISODate): CoachSignal
     if (t.blockedReason) facts.push(`미완료 사유: ${t.blockedReason}`);
     let sig: CoachSignal | null = null;
     if (t.required && d < 0) {
+      // 외부 대기(업체 일정 등)로 막힌 업무는 현장 작업을 재촉해도 진행되지 않는다 → 막힌 원인을 오늘 해소하는 조치를 추천
+      const blocked = !!t.blockedReason;
       sig = { ...base, key: `PO-OVERDUE-REQUIRED:${t.id}`, ruleId: "PO-OVERDUE-REQUIRED", ruleLabel: RULES["PO-OVERDUE-REQUIRED"].label, severity: "URGENT",
         title: `${t.title} — 필수 업무 ${Math.abs(d)}일 지연`, why: ["개업 필수 준비 항목", ...facts],
-        suggestion: "담당자를 확정하고 오늘 우선 처리 업무로 지정하세요. 일정 변경이 필요하면 사유를 남기세요.", actionLabel: "담당 배정 · 오늘 우선 처리",
+        suggestion: blocked
+          ? "현장 작업이 아니라 막힌 원인 때문에 지연되고 있습니다. 담당자가 오늘 관련 업체와 일정을 확정하고, 확정된 날짜로 마감일을 다시 잡으세요."
+          : "담당자를 확정하고 오늘 우선 처리 업무로 지정하세요. 일정 변경이 필요하면 사유를 남기세요.",
+        actionLabel: blocked ? "오늘 업체 일정 확정 · 마감 재조정" : "담당 배정 · 오늘 우선 처리",
         suggestedAssigneeId: t.assigneeId ?? suggestAssignee(state, t.category) };
     } else if (t.required && d <= 2 && p.ratio < 0.5) {
       sig = { ...base, key: `PO-DUE-SOON:${t.id}`, ruleId: "PO-DUE-SOON", ruleLabel: RULES["PO-DUE-SOON"].label, severity: "HIGH",
@@ -116,6 +121,14 @@ export function preOpeningSignals(state: DemoState, today: ISODate): CoachSignal
     }
   }
   return out;
+}
+
+/** 경과 시간 표기: 59분 / 3시간 20분 */
+function waitText(min: number): string {
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
 export function operationsSignals(state: DemoState): CoachSignal[] {
@@ -151,15 +164,24 @@ export function operationsSignals(state: DemoState): CoachSignal[] {
     });
   }
   for (const r of state.reservations) {
-    if (r.status !== "CONFIRMED" || r.checkIn !== today) continue;
-    const late = minutesBetween(`${today}T${state.property.checkInTime}:00+09:00`, clock);
+    if (r.status !== "CONFIRMED" || r.checkIn > today) continue;
+    if (toMs(clock) >= toMs(atKst(r.checkOut, state.property.checkOutTime))) continue; // 퇴실 시각이 지난 예약은 대상 아님
+    const late = minutesBetween(atKst(r.checkIn, state.property.checkInTime), clock);
     if (late < 180) continue;
+    // 입실일이 지난 예약은 '늦은 도착'이 아니라 노쇼 여부 확인 대상
+    const past = r.checkIn < today;
     out.push({
       key: `OP-CHECKIN-LATE:${r.id}`, ruleId: "OP-CHECKIN-LATE", ruleLabel: RULES["OP-CHECKIN-LATE"].label, scope: "OPERATIONS", severity: "MEDIUM",
       targetType: "RESERVATION", targetId: r.id, link: `/reservations?r=${r.id}`,
-      title: `${r.code} 체크인 미완료 (입실 가능 후 ${Math.floor(late / 60)}시간 경과)`,
-      why: ["예약확정 상태", `입실 가능 ${state.property.checkInTime}`, `시뮬레이션 시각 ${kstTime(clock)}`],
-      dataUsed: ["예약 상태", "체크인 정책 시각"], suggestion: "고객에게 도착 예정 시간을 확인하세요(실제 문자 발송 미구현).", actionLabel: "확인 처리",
+      title: past
+        ? `${room(r.roomId)?.number}호 ${r.code} — 입실일 ${r.checkIn.slice(5).replace("-", "/")} 지남 · 체크인 기록 없음`
+        : `${room(r.roomId)?.number}호 ${r.code} 체크인 미완료 (입실 가능 후 ${Math.floor(late / 60)}시간 경과)`,
+      why: ["예약확정 상태", `입실일 ${fmtDateKo(r.checkIn)} · 입실 가능 ${state.property.checkInTime}`, `시뮬레이션 시각 ${fmtDateKo(today)} ${kstTime(clock)}`],
+      dataUsed: ["예약 상태", "체크인 정책 시각"],
+      suggestion: past
+        ? "노쇼인지 늦은 도착인지 고객에게 확인하고, 연락이 닿지 않으면 숙소 정책에 따라 처리하세요(실제 문자 발송 미구현)."
+        : "고객에게 도착 예정 시간을 확인하세요(실제 문자 발송 미구현).",
+      actionLabel: "확인 처리",
     });
   }
   for (const q of state.guestRequests) {
@@ -169,8 +191,8 @@ export function operationsSignals(state: DemoState): CoachSignal[] {
     out.push({
       key: `OP-REQUEST-WAITING:${q.id}`, ruleId: "OP-REQUEST-WAITING", ruleLabel: RULES["OP-REQUEST-WAITING"].label, scope: "OPERATIONS", severity: "MEDIUM",
       targetType: "GUEST_REQUEST", targetId: q.id, link: `/operations?tab=requests&q=${q.id}`,
-      title: `${room(q.roomId)?.number}호 고객 문의 ${wait}분째 응답 대기`,
-      why: [`"${q.messages[0]?.text.slice(0, 28) ?? ""}"`, `접수 후 ${wait}분 경과`, "응답 전 상태(NEW)"], dataUsed: ["고객 문의 접수 시각", "처리 상태"],
+      title: `${room(q.roomId)?.number}호 고객 문의 ${waitText(wait)}째 응답 대기`,
+      why: [`"${q.messages[0]?.text.slice(0, 28) ?? ""}"`, `접수 후 ${waitText(wait)} 경과`, "응답 전 상태(NEW)"], dataUsed: ["고객 문의 접수 시각", "처리 상태"],
       suggestion: "담당자가 답변을 남기면 고객 화면에 즉시 표시됩니다.", actionLabel: "문의 처리하기",
     });
   }
@@ -238,6 +260,8 @@ export function ruleNarrative(state: DemoState, scope: "PRE_OPENING" | "OPERATIO
   if (failures) lines.push(`출입권한 실패 ${failures}건: 고객에게 입실 가능 안내를 보류하고 수동 지원이 필요합니다.`);
   if (cleaning) lines.push(`입실 전 청소 미완료 ${cleaning}건: 청소 우선 배정이 필요합니다.`);
   if (req) lines.push(`응답 대기 고객 문의 ${req}건.`);
+  const late = items.filter((i) => i.ruleId === "OP-CHECKIN-LATE").length;
+  if (late) lines.push(`체크인 미완료 예약 ${late}건: 도착 예정 시간 또는 노쇼 여부 확인이 필요합니다.`);
   if (!items.length) lines.push("현재 규칙 기준 위험 신호가 없습니다.");
   lines.push(`중복 예약 ${doubleBookingCount(state)}건 (저장 단계에서 겹침 차단).`);
   return lines;

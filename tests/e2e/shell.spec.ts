@@ -73,6 +73,11 @@ test("시연 모드 7 Step이 실제 Route를 이동", async ({ page }) => {
   for (let i = 0; i < 3; i++) await page.getByTestId("tour-next").click();
   await expect(page).toHaveURL(/reservations/);
   expect(await demoState<string>(page, "(s) => s.ui.stage")).toBe("SIMULATION");
+  // ⑦ 체크아웃은 퇴실일 아침으로 시각을 옮긴 뒤 진행
+  for (let i = 0; i < 2; i++) await page.getByTestId("tour-next").click();
+  await expect(page.getByTestId("tour-card")).toContainText("7/7");
+  await page.getByTestId("tour-sim-morning").click();
+  await expect(page.getByTestId("sim-clock")).toContainText("11.06");
   await page.getByTestId("tour-exit").click();
   await expect(page.getByTestId("tour-card")).toHaveCount(0);
 });

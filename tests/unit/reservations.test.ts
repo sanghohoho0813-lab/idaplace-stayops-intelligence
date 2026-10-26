@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findConflicts, rangesOverlap, validateDraft, availableRooms } from "@/domain/reservations";
+import { findConflicts, rangesOverlap, validateDraft, availableRooms, demoEstimate } from "@/domain/reservations";
 import { makeSeed } from "@/domain/seed";
 
 const seed = makeSeed("2026-10-27T01:00:00Z");
@@ -43,5 +43,18 @@ describe("예약 중복 방지 [checkIn, checkOut)", () => {
   });
   it("가용 객실 추천", () => {
     expect(availableRooms(seed.rooms, seed.reservations, "2026-11-05", "2026-11-06").map((r) => r.number)).toEqual(["202", "203"]);
+  });
+});
+
+describe("예약 예상 금액 (가상 요금표)", () => {
+  it("객실 유형 × 박수로 계산하고, Seed 예약 금액과 일치한다", () => {
+    for (const r of seed.reservations) {
+      const room = seed.rooms.find((x) => x.id === r.roomId)!;
+      expect(demoEstimate(room.type, r.checkIn, r.checkOut)).toBe(r.estimateAmount);
+    }
+  });
+  it("디럭스 1박과 스탠다드 1박은 금액이 다르다", () => {
+    expect(demoEstimate("디럭스 더블", "2026-11-05", "2026-11-06")).toBe(109000);
+    expect(demoEstimate("스탠다드 더블", "2026-11-05", "2026-11-07")).toBe(178000);
   });
 });

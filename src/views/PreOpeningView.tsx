@@ -13,7 +13,7 @@ import { dday, manwon } from "@/domain/format";
 import { fmtDateKo, fmtInstant, addDays } from "@/domain/time";
 import { can } from "@/domain/permissions";
 import { isCoachPriority } from "@/domain/coach";
-import { addTaskPhoto, cancelTask, completeTask, createTask, reopenTask, restoreTask, toggleChecklist, updateTask } from "@/lib/store/actions";
+import { addTaskPhoto, cancelTask, completeTask, createTask, reopenTask, restoreTask, setStaffPersonaFor, toggleChecklist, updateTask } from "@/lib/store/actions";
 import { axActor } from "@/lib/store/actor";
 import { useDeviceView } from "@/components/device/DeviceView";
 import { ActivityList, Freshness, TaskStatusBadge, roomNo, staffName, useTodayKst } from "./shared";
@@ -293,7 +293,7 @@ export function TaskDetail({ task, onClose }: { task?: OpeningTask; onClose: () 
           </ul>
         </div>
         {dv?.available && open && (
-          <button type="button" onClick={() => dv.openInMobile(`/staff/tasks/${task.id}`)} data-testid="open-in-staff-app" className="press flex w-full items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-soft/50 px-4 py-3 text-left hover:bg-soft">
+          <button type="button" onClick={() => { setStaffPersonaFor(task.id); dv.openInMobile(`/staff/tasks/${task.id}`); }} data-testid="open-in-staff-app" className="press flex w-full items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-soft/50 px-4 py-3 text-left hover:bg-soft">
             <Smartphone className="h-5 w-5 text-primary-ink" aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="block font-bold text-primary-ink">직원 앱(모바일)에서 이 업무 열기</span>

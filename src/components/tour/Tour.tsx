@@ -11,7 +11,9 @@ import { ChevronLeft, ChevronRight, X, Presentation as PresIcon, GraduationCap }
 import { forceUnlockScroll } from "@/components/ui/overlay-utils";
 import { useDeviceView, useFrame } from "@/components/device/DeviceView";
 import { useStore } from "@/components/providers/StoreProvider";
-import { markTutorialSeen, setStage } from "@/lib/store/actions";
+import { markTutorialSeen, setSimClock, setStage, setStaffPersonaFor } from "@/lib/store/actions";
+import { axActor } from "@/lib/store/actor";
+import { addDays, atKst, kstDate, simNow } from "@/domain/time";
 import type { DemoState } from "@/domain/types";
 
 type TourId = "tutorial" | "presentation";
@@ -59,21 +61,21 @@ export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
       },
       {
         title: "② 203호 도어락 설치 점검",
-        body: "업무를 열면 담당자·기한·체크리스트·미완료 사유가 보입니다. 오른쪽 모바일은 현장직원 앱입니다 — 같은 데이터를 공유합니다.",
+        body: "업무를 열면 담당자(시설 담당)·기한·체크리스트·미완료 사유가 보입니다. 오른쪽 모바일은 그 담당자의 현장직원 앱입니다 — 같은 데이터를 공유합니다.",
         route: () => "/pre-opening?task=pt08",
         target: "task-detail",
-        actions: [{ label: "직원 앱에서 이 업무 열기", run: (c) => c.openInMobile("/staff/tasks/pt08"), testId: "tour-open-staff-task" }],
+        actions: [{ label: "직원 앱에서 이 업무 열기", run: (c) => { setStaffPersonaFor("pt08"); c.openInMobile("/staff/tasks/pt08"); }, testId: "tour-open-staff-task" }],
       },
       {
         title: "③ 모바일 완료 → PC 즉시 반영",
         body: "모바일에서 체크리스트를 체크하고 '완료 보고'를 누르면 PC 준비율·알림·활동기록이 공통 저장소를 통해 바로 바뀝니다.",
         route: () => "/dashboard",
         target: "readiness",
-        checklist: ["모바일: 체크리스트 4개 체크", "모바일: 완료 보고", "PC: 준비율 · 알림 · 활동기록 변화 확인"],
+        checklist: ["모바일: 미완료 사유(나사 입고) '해소됨'", "모바일: 남은 체크리스트 체크 → 완료 보고", "PC: 준비율 · 알림 · 활동기록 변화 확인"],
       },
       {
         title: "④ AI 개업 코치 → 사람의 조치 → 증거",
-        body: "규칙 기반으로 지연·마감 임박 필수 업무를 근거와 함께 보여줍니다. '담당 배정 · 오늘 우선 처리'를 승인하면 직원 앱 상단에 노출되고, 완료 시 Proof Event가 남습니다. 개업 가능 여부를 법적으로 판정하지 않습니다.",
+        body: "규칙 기반으로 지연·마감 임박 필수 업무를 근거와 함께 보여줍니다. 업체 재방문을 기다리는 업무에는 '오늘 업체 일정 확정'처럼 막힌 원인에 맞는 조치를 추천합니다. 승인하면 담당자 앱 상단에 노출되고, 완료 시 Proof Event가 남습니다. 개업 가능 여부를 법적으로 판정하지 않습니다.",
         route: () => "/insights",
         target: "coach-list",
       },
@@ -105,12 +107,30 @@ export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
         ],
       },
       {
-        title: "⑦ 체크아웃 → 청소 → 입실준비 · 실증 기록",
-        body: "고객 화면에서 체크아웃하면 출입권한이 만료(시뮬레이션)되고 청소 작업이 자동 생성됩니다. 직원 앱에서 청소를 완료하면 객실이 입실준비로 바뀌고 Evidence에 기록됩니다. 실제 개선율은 개업 후 Baseline을 잡은 뒤 측정합니다.",
+        title: "⑦ 다음날 아침 체크아웃 → 청소 → 입실준비 · 실증 기록",
+        body: "시뮬레이션 시각을 퇴실일 아침으로 옮긴 뒤 고객 화면에서 체크아웃합니다. 출입권한이 만료(시뮬레이션)되고 청소 작업이 자동 생성되며, 같은 객실에 오늘 15:00 입실 손님이 있어 '입실 전 완료'가 우선순위로 보입니다. 직원 앱에서 청소를 완료하면 입실준비로 바뀌고 Evidence에 기록됩니다.",
         route: () => "/operations?tab=housekeeping",
         target: "housekeeping-list",
         actions: [
-          { label: "직원 앱(청소) 열기", run: (c) => c.openInMobile("/staff/tasks?tab=ops") },
+          {
+            label: "퇴실일 아침 10:40으로 이동",
+            testId: "tour-sim-morning",
+            run: (c) => {
+              const r = latestDemoReservation(c.s);
+              const day = r ? r.checkOut : addDays(kstDate(simNow(c.s.simulation)), 1);
+              setSimClock(atKst(day, "10:40"), axActor(c.s));
+            },
+          },
+          {
+            label: "직원 앱(청소) 열기",
+            run: (c) => {
+              const job = c.s.housekeepingJobs.find((j) => j.source === "AUTO_CHECKOUT" && (j.status === "PENDING" || j.status === "IN_PROGRESS"));
+              if (job) {
+                setStaffPersonaFor(job.id);
+                c.openInMobile(`/staff/tasks/${job.id}`);
+              } else c.openInMobile("/staff/tasks?tab=ops");
+            },
+          },
           { label: "실증·Evidence 보기", run: (c) => c.push("/evidence") },
           { label: "기획의도 보기", run: (c) => c.push("/why-ax") },
         ],

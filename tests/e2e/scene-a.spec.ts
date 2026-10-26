@@ -17,6 +17,9 @@ test("Scene A — 모바일 직원 완료 → PC 준비율·알림·활동기록
   await expect(page.getByTestId("dual-view")).toBeVisible();
   const f = frame(page);
   await expect(f.getByTestId("staff-task-detail")).toBeVisible();
+  // 업무 담당자(시설 담당 정민수)의 직원 앱으로 열린다
+  await expect(f.getByTestId("staff-persona")).toHaveValue("s3");
+  await f.getByTestId("staff-clear-blocked").click();
   for (const id of ["c2", "c3", "c4"]) await f.getByTestId(`staff-check-${id}`).click();
   await f.getByTestId("staff-complete").click();
   await expect(f.getByTestId("staff-done-banner")).toBeVisible();
@@ -28,6 +31,8 @@ test("Scene A — 모바일 직원 완료 → PC 준비율·알림·활동기록
   await expect.poll(kpi).toBeGreaterThan(before);
   await expect(page.getByTestId("dashboard-notifications")).toContainText("203호 도어락 설치 점검");
   await expect(page.getByTestId("activity-list")).toContainText("완료 보고");
+  const doneBy = await demoState<string>(page, "(s) => s.openingTasks.find(t => t.id === 'pt08').completedBy");
+  expect(doneBy).toBe("s3");
   const proofs = await demoState<string[]>(page, "(s) => s.proofEvents.map(p => p.event_type)");
   expect(proofs.filter((p) => p === "OPENING_TASK_DONE").length).toBeGreaterThanOrEqual(2);
   expect(errors).toEqual([]);

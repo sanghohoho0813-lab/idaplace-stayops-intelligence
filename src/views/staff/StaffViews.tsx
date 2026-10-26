@@ -14,7 +14,7 @@ import { fmtClock, fmtDateKo, kstDate, simNow } from "@/domain/time";
 import { addJobPhoto, addTaskPhoto, completeJob, completeTask, startJob, toggleChecklist, toggleJobChecklist, updateTask } from "@/lib/store/actions";
 import { staffActor } from "@/lib/store/actor";
 import type { HousekeepingJob, OpeningTask } from "@/domain/types";
-import { HK_STATUS, HK_TYPE_LABEL, roomNo, TaskStatusBadge, useTodayKst } from "../shared";
+import { HK_STATUS, HK_TYPE_LABEL, JobDue, roomNo, TaskStatusBadge, useTodayKst } from "../shared";
 import { roomDisplayStatus, ROOM_DISPLAY } from "@/domain/rooms";
 import { nextArrival } from "@/domain/reservations";
 
@@ -38,7 +38,7 @@ export function StaffTasksView() {
     <div className="space-y-4" data-testid="staff-tasks">
       <div>
         <h1 className="text-[1.35rem] font-extrabold">오늘 업무</h1>
-        <p className="text-[0.84rem] text-muted">{fmtDateKo(today)} · 체크하면 관리자 화면에 바로 반영됩니다.</p>
+        <p className="text-[0.84rem] text-muted">{tab === "ops" ? `시뮬레이션 ${fmtDateKo(kstDate(simNow(s.simulation)))}` : fmtDateKo(today)} · 체크하면 관리자 화면에 바로 반영됩니다.</p>
       </div>
       <Segmented<Tab>
         value={tab}
@@ -132,6 +132,7 @@ function JobCard({ j }: { j: HousekeepingJob }) {
           </div>
           <p className="mt-1 text-[1.02rem] font-bold">{HK_TYPE_LABEL[j.type]}</p>
           <p className="text-[0.78rem] text-muted">요청 {fmtClock(j.createdAt)} · 체크 {done}/{j.checklist.length}</p>
+          {j.dueBy && <p className="text-[0.78rem]"><JobDue j={j} s={s} /></p>}
         </div>
         <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted" aria-hidden />
       </div>
@@ -287,8 +288,9 @@ function StaffJob({ j }: { j: HousekeepingJob }) {
         <h1 className="mt-2 text-[1.35rem] font-extrabold">{room.number}호 {HK_TYPE_LABEL[j.type]}</h1>
         <p className="mt-1 text-[0.84rem] text-muted">
           객실 상태: <b className="text-ink" data-testid="job-room-status">{ROOM_DISPLAY[roomDisplayStatus(room, s.reservations, today)].label}</b>
-          {next ? ` · 다음 입실 ${next.checkIn.slice(5).replace("-", "/")} ${s.property.checkInTime}` : ""}
+          {next && !(j.dueBy && active) ? ` · 다음 입실 ${next.checkIn.slice(5).replace("-", "/")} ${s.property.checkInTime}` : ""}
         </p>
+        {j.dueBy && active && <p className="mt-1 text-[0.86rem]"><JobDue j={j} s={s} /></p>}
       </div>
       {j.status === "PENDING" && (
         <Button size="lg" block icon={Play} onClick={() => startJob(j.id, actor)} data-testid="job-start">

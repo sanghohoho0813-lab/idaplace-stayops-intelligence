@@ -253,9 +253,10 @@ export function SimulationBar() {
   const clock = useSimNow();
   const d = kstDate(clock);
   const actor = axActor(s);
-  const presets: { label: string; iso: string; Icon: typeof CalendarClock }[] = [
-    { label: "입실 시간대", iso: SIM_DEFAULT_CLOCK, Icon: CalendarClock },
-    { label: "다음날 퇴실 시간대", iso: atKst(addDays(d, 1), "10:40"), Icon: Moon },
+  // 프리셋은 '현재 시뮬레이션 날짜' 기준: 오늘 입실 시간대 / 다음 날 퇴실 전 아침
+  const presets: { label: string; iso: string; Icon: typeof CalendarClock; testId: string }[] = [
+    { label: "입실 시간대 15:20", iso: atKst(d, "15:20"), Icon: CalendarClock, testId: "sim-preset-checkin" },
+    { label: "다음날 아침 10:40", iso: atKst(addDays(d, 1), "10:40"), Icon: Moon, testId: "sim-preset-next-morning" },
   ];
   return (
     <div data-testid="simulation-bar" className="border-b border-black/10 bg-[linear-gradient(90deg,rgb(var(--theme-shell))_0%,rgb(var(--theme-shell)/0.94)_70%,rgb(var(--theme-primary)/0.55)_130%)] px-4 py-2 text-white @xl/shell:px-8 [[data-theme=t07]_&]:bg-[linear-gradient(90deg,rgb(var(--theme-primary)),rgb(var(--theme-secondary)))]">
@@ -263,7 +264,7 @@ export function SimulationBar() {
         <span className="inline-flex items-center gap-1.5 rounded-md bg-white/15 px-2 py-0.5 text-[0.72rem] font-extrabold tracking-wide">
           <FlaskConical className="h-3.5 w-3.5" aria-hidden /> FUTURE OPERATIONS · DEMO
         </span>
-        <span className="text-[0.8rem] text-white/90">가상의 예약·체크인·출입권한 흐름입니다. 실제 예약·고객·도어락·매출과 연결되지 않습니다.</span>
+        <span className="text-[0.8rem] text-white/90">개업 후를 가정한 가상의 날짜·예약·체크인·출입권한 흐름입니다. 실제 예약·고객·도어락·매출과 연결되지 않습니다.</span>
         <span className="ml-auto inline-flex items-center gap-2">
           <span className="whitespace-nowrap text-[0.78rem] font-bold tabular" data-testid="sim-clock" title="시뮬레이션 기준 시각 (KST)">
             시뮬레이션 시각 {fmtDate(d, false)} {fmtClock(clock)}
@@ -272,7 +273,7 @@ export function SimulationBar() {
             +1시간
           </button>
           {presets.map((p) => (
-            <button key={p.label} type="button" className="press hidden rounded-md bg-white/15 px-2 py-0.5 text-[0.72rem] font-bold hover:bg-white/25 @md/shell:inline-flex" onClick={() => setSimClock(p.iso, actor)} title={`시뮬레이션 시각을 ${p.label}로 이동`}>
+            <button key={p.label} type="button" className="press hidden rounded-md bg-white/15 px-2 py-0.5 text-[0.72rem] font-bold hover:bg-white/25 @md/shell:inline-flex" onClick={() => setSimClock(p.iso, actor)} title={`시뮬레이션 시각을 ${p.label}로 이동`} data-testid={p.testId}>
               {p.label}
             </button>
           ))}

@@ -297,7 +297,7 @@ function SimDashboard() {
               const next = nextArrival(s.reservations, r.id, today);
               return (
                 <Link key={r.id} href="/operations?tab=rooms" className="card-hover rounded-2xl border border-line bg-surface-2 p-3" data-testid={`room-card-${r.number}`} data-status={k}>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                     <span className="text-[1.05rem] font-extrabold">{r.number}호</span>
                     <Badge tone={ROOM_DISPLAY[k].tone}>{ROOM_DISPLAY[k].label}</Badge>
                   </div>

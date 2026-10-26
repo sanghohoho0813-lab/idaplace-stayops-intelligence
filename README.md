@@ -24,7 +24,7 @@ npm run build && npm run start   # 프로덕션 모드
 ```bash
 npm run typecheck    # TypeScript
 npm run lint         # ESLint
-npm test             # 단위 테스트 (Vitest · 도메인 규칙 41개)
+npm test             # 단위 테스트 (Vitest · 도메인 규칙 47개)
 npm run test:e2e     # E2E (Playwright · 24개 · 개발 서버 자동 실행/재사용)
 E2E_PROD=1 npm run test:e2e   # 프로덕션 빌드로 E2E
 ```
@@ -34,7 +34,7 @@ E2E_PROD=1 npm run test:e2e   # 프로덕션 빌드로 E2E
 | Scene | 흐름 | 시작 위치 |
 |---|---|---|
 | A. 개업 준비 (현재 실제 단계) | 개업 준비 업무 → 직원 모바일 완료 → PC 준비율·알림·활동기록 즉시 반영 → 코치 → Proof Event | `/pre-opening?task=pt08` → "직원 앱(모바일)에서 이 업무 열기" |
-| B. 미래 운영 시뮬레이션 | 예약 등록(중복 차단) → QR 셀프 체크인(뒤 4자리+데모 인증번호) → Demo 출입코드 → 문의 왕복 → 체크아웃 → 출입권한 만료 → 청소 자동 생성 → 직원 완료 → 입실준비 | `/reservations?new=1` |
+| B. 미래 운영 시뮬레이션 | 예약 등록(중복 차단) → QR 셀프 체크인(뒤 4자리+데모 인증번호) → Demo 출입코드 → 문의 왕복 → **다음날 아침으로 시각 이동** → 체크아웃 → 출입권한 만료 → 청소 자동 생성(다음 손님 입실 전 기한) → 직원 완료 → 입실준비 | `/reservations?new=1` |
 | 장애 | 출입코드 적용 실패 → '입실 가능' 미표시 → 긴급 확인 → 재발급/수동 입실 지원 기록 | `/access` → "적용 실패" 선택 |
 
 4~5분 큐시트는 [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md), 앱 안의 **시연 모드(`/presentation`)** 가 같은 순서로 실제 화면을 안내합니다.

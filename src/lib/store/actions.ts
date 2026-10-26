@@ -13,10 +13,10 @@ import type { ThemeId } from "@/lib/theme/themes";
 import { commit, replaceState, getSnapshot } from "./repository";
 import type { Actor } from "./actor";
 import { uid, guestToken, digits } from "@/domain/ids";
-import { addDays, atKst, kstDate, minutesBetween, nowIso, simNow, toMs } from "@/domain/time";
+import { addDays, atKst, fmtDateKo, kstDate, kstTime, minutesBetween, nowIso, simNow, toMs } from "@/domain/time";
 import { maskName, maskPhone } from "@/domain/format";
 import { readiness, requiredChecklistDone, roomPrepFromTasks, CATEGORY_META } from "@/domain/readiness";
-import { validateDraft, type ReservationDraft, type DraftError } from "@/domain/reservations";
+import { demoEstimate, nextArrival, validateDraft, type ReservationDraft, type DraftError } from "@/domain/reservations";
 import { assertRoomTransition } from "@/domain/rooms";
 import type { CoachSignal } from "@/domain/coach";
 import { makeSeed, HOUSEKEEPING_CHECKLIST } from "@/domain/seed";
@@ -73,6 +73,14 @@ export const setBrandTune = (on: boolean) => commit((d) => void (d.ui.brandTune 
 export const setFontScale = (f: FontScale) => commit((d) => void (d.ui.fontScale = f));
 export const setReduceMotion = (on: boolean) => commit((d) => void (d.ui.reduceMotion = on));
 export const setStaffPersona = (id: string) => commit((d) => void (d.ui.staffPersonaId = id));
+
+/** '직원 앱에서 열기' — 해당 업무 담당자의 휴대폰 화면으로 보이도록 직원 앱 담당자를 맞춘다 (담당 미지정·관리자 담당이면 유지) */
+export function setStaffPersonaFor(targetId: string) {
+  const s = getSnapshot();
+  const assigneeId = s.openingTasks.find((t) => t.id === targetId)?.assigneeId ?? s.housekeepingJobs.find((j) => j.id === targetId)?.assigneeId;
+  const p = s.staff.find((m) => m.id === assigneeId && m.team !== "MANAGER");
+  if (p && s.ui.staffPersonaId !== p.id) setStaffPersona(p.id);
+}
 export const markTutorialSeen = () => commit((d) => void (d.ui.tutorialSeen = true));
 
 export function markAllNotificationsRead(audience: "OPS" | "STAFF") {
@@ -283,7 +291,7 @@ export function coachAct(sig: CoachSignal, action: "APPROVE" | "HOLD" | "DISMISS
           if (!t.assigneeId && sig.suggestedAssigneeId) t.assigneeId = sig.suggestedAssigneeId;
           rec.assigneeId = t.assigneeId;
           t.updatedAt = nowIso();
-          notify(d, { level: "WARN", title: "오늘 우선 처리 업무", body: `${t.title} — 담당 ${staffName(d, t.assigneeId)}`, link: `/staff/tasks/${t.id}`, audience: "STAFF" });
+          notify(d, { level: "WARN", title: "오늘 우선 처리 업무", body: `${t.title} — ${sig.actionLabel} · 담당 ${staffName(d, t.assigneeId)}`, link: `/staff/tasks/${t.id}`, audience: "STAFF" });
         }
       }
       if (sig.targetType === "ROOM") {
@@ -339,7 +347,7 @@ export function createReservation(draft: ReservationDraft, actor: Actor): { ok: 
     d.reservations.push({
       id, code, propertyId: d.property.id, roomId: draft.roomId, guestName: draft.guestName.trim(), guestPhoneMasked: phone.masked, guestPhoneLast4: phone.last4,
       guests: draft.guests, checkIn: draft.checkIn, checkOut: draft.checkOut, status: "CONFIRMED", source: "DIRECT_DEMO",
-      estimateAmount: 89000 * Math.max(1, (Date.parse(draft.checkOut) - Date.parse(draft.checkIn)) / 86400000), memo: draft.memo?.trim() || undefined,
+      estimateAmount: demoEstimate(d.rooms.find((x) => x.id === draft.roomId)?.type, draft.checkIn, draft.checkOut), memo: draft.memo?.trim() || undefined,
       guestToken: { token: guestToken(), createdAt: nowIso(), expiresAt: atKst(addDays(draft.checkOut, 1), "11:00"), revoked: false },
       dataSource: "DEMO_USER_INPUT", createdAt: nowIso(), updatedAt: nowIso(),
     });
@@ -367,6 +375,7 @@ export function updateReservation(id: string, draft: ReservationDraft, actor: Ac
     r.roomId = draft.roomId;
     r.checkIn = draft.checkIn;
     r.checkOut = draft.checkOut;
+    if (changed) r.estimateAmount = demoEstimate(d.rooms.find((x) => x.id === r.roomId)?.type, r.checkIn, r.checkOut);
     r.memo = draft.memo?.trim() || undefined;
     if (draft.phone.trim()) {
       const p = maskPhone(draft.phone);
@@ -555,14 +564,22 @@ export function checkout(reservationId: string, actor: Actor): { ok: boolean; me
     assertRoomTransition(room.opStatus, "DIRTY");
     room.opStatus = "DIRTY";
     room.updatedAt = simTsNow();
-    const assignee = d.staff.find((x) => x.team === "HOUSEKEEPING")?.id;
+    // 배정 규칙: 객실/청소 직원 중 진행 중 청소·점검이 가장 적은 사람 (동률이면 목록 순서)
+    const openLoad = (id: string) => d.housekeepingJobs.filter((j) => j.assigneeId === id && (j.status === "PENDING" || j.status === "IN_PROGRESS")).length;
+    const assignee = d.staff.filter((x) => x.team === "HOUSEKEEPING").sort((a, b) => openLoad(a.id) - openLoad(b.id))[0]?.id;
+    // 완료 기한: 같은 객실 다음 입실 예약의 입실 가능 시각
+    const now = simTsNow();
+    const next = nextArrival(d.reservations as DemoState["reservations"], r.roomId, kstDate(now));
+    const dueBy = next ? new Date(atKst(next.checkIn, d.property.checkInTime)).toISOString() : undefined;
+    const early = kstDate(now) < r.checkOut;
     d.housekeepingJobs.unshift({
       id: jobId, propertyId: d.property.id, roomId: r.roomId, reservationId: r.id, type: "CHECKOUT_CLEAN", status: "PENDING", assigneeId: assignee,
       checklist: HOUSEKEEPING_CHECKLIST.map(([label, required], i) => ({ id: `c${i + 1}`, label, required, done: false })), photos: [],
-      source: "AUTO_CHECKOUT", createdAt: simTsNow(), updatedAt: simTsNow(),
+      source: "AUTO_CHECKOUT", dueBy, createdAt: now, updatedAt: now,
     });
-    log(d, actor, "CHECKOUT", `[DEMO] 가상 체크아웃 ${r.code} · ${room.number}호 → 청소 작업 자동 생성 (담당 ${staffName(d, assignee)})`, { type: "RESERVATION", id: r.id });
-    notify(d, { level: "WARN", title: "청소 요청 생성", body: `${room.number}호 체크아웃 — 청소 대기 · 담당 ${staffName(d, assignee)}`, link: `/staff/tasks/${jobId}`, audience: "ALL" });
+    const dueText = next && dueBy ? ` · 다음 입실 ${next.checkIn === kstDate(now) ? "오늘" : fmtDateKo(next.checkIn)} ${kstTime(dueBy)} 전 완료` : "";
+    log(d, actor, "CHECKOUT", `[DEMO] 가상 체크아웃 ${r.code} · ${room.number}호${early ? " (예정일보다 이른 체크아웃)" : ""} → 청소 작업 자동 생성 (담당 ${staffName(d, assignee)}${dueText})`, { type: "RESERVATION", id: r.id });
+    notify(d, { level: "WARN", title: "청소 요청 생성", body: `${room.number}호 체크아웃 — 청소 대기 · 담당 ${staffName(d, assignee)}${dueText}`, link: `/staff/tasks/${jobId}`, audience: "ALL" });
   });
   return { ok: true, message: "체크아웃이 완료되었습니다.", jobId };
 }

@@ -171,7 +171,7 @@ function ConsentBlock({ sessionId }: { sessionId: string }) {
   const [c, setC] = useState(false);
   const items: [boolean, (v: boolean) => void, string, string][] = [
     [a, setA, "하우스룰 확인 (필수)", "객실 내 금연 · 22시 이후 정숙 · 반려동물 동반 불가 (데모 안내)"],
-    [b, setB, "개인정보 처리 안내 (필수)", "체크인 확인을 위해 예약번호·휴대전화 뒤 4자리만 사용합니다. 신분증 촬영은 하지 않습니다. (데모)"],
+    [b, setB, "개인정보 처리 안내 (필수)", "체크인 확인에 예약 정보와 휴대전화 뒤 4자리를 사용합니다. (데모 문구 — 실제 개인정보 처리방침과 신원·성인 확인 절차는 운영 전 법률 검토 후 확정)"],
     [c, setC, "출입코드 안내 방식 확인 (필수)", "출입코드는 본인 확인을 마친 이 화면에서만 표시되며 투숙 기간에만 유효합니다. 이번 시연의 코드는 가상 코드입니다."],
   ];
   return (
@@ -576,6 +576,11 @@ export function GuestStayView({ token }: { token: string }) {
           </>
         }
       >
+        {kstDate(simNow(s.simulation)) < r.checkOut && (
+          <p className="mb-2 rounded-xl bg-warning-soft px-3 py-2 text-[0.86rem] font-semibold text-warning" data-testid="early-checkout-note">
+            예정 체크아웃({fmtDateKo(r.checkOut)} {s.property.checkOutTime})보다 이른 체크아웃입니다. 남은 숙박일 처리는 숙소 정책을 따릅니다. (데모 안내)
+          </p>
+        )}
         <p className="text-[0.9rem] text-ink-2">놓고 가신 물건이 없는지 확인해 주세요. 분실물은 직원이 확인 후 연락드립니다.</p>
       </Overlay>
       <p className="text-center text-[0.72rem] text-muted">

@@ -54,6 +54,20 @@ export type DraftError = { field: keyof ReservationDraft | "form"; message: stri
 
 export const MAX_NIGHTS = 30;
 
+/** 가상 1박 요금표 (데모) — 객실 유형별 예약예상 금액 계산용. 실제 판매가·결제와 무관 */
+export const DEMO_NIGHTLY_RATE: Record<string, number> = {
+  "스탠다드 더블": 89000,
+  "스탠다드 트윈": 84000,
+  "디럭스 더블": 109000,
+  "패밀리 (4인)": 129000,
+};
+const DEFAULT_RATE = 89000;
+
+export function demoEstimate(roomType: string | undefined, checkIn: ISODate, checkOut: ISODate): number {
+  const nights = Math.max(1, diffDays(checkIn, checkOut));
+  return (DEMO_NIGHTLY_RATE[roomType ?? ""] ?? DEFAULT_RATE) * nights;
+}
+
 export function validateDraft(
   draft: ReservationDraft,
   rooms: Room[],

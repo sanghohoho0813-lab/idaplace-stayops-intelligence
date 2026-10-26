@@ -12,12 +12,12 @@ import { roomDisplayStatus, ROOM_DISPLAY } from "@/domain/rooms";
 import { nextArrival, reservationOnDate } from "@/domain/reservations";
 import { maskName } from "@/domain/format";
 import { can } from "@/domain/permissions";
-import { assignJob, completeJob, replyGuestRequest, startJob, toggleJobChecklist } from "@/lib/store/actions";
+import { assignJob, completeJob, replyGuestRequest, setStaffPersonaFor, startJob, toggleJobChecklist } from "@/lib/store/actions";
 import { axActor } from "@/lib/store/actor";
 import { isCoachPriority } from "@/domain/coach";
 import { useDeviceView } from "@/components/device/DeviceView";
 import type { GuestRequestStatus } from "@/domain/types";
-import { Freshness, HK_STATUS, HK_TYPE_LABEL, roomNo, staffName } from "./shared";
+import { Freshness, HK_STATUS, HK_TYPE_LABEL, JobDue, roomNo, staffName } from "./shared";
 import { IncidentList } from "./AccessView";
 
 type Tab = "rooms" | "housekeeping" | "requests" | "incidents";
@@ -126,6 +126,7 @@ function HousekeepingBoard() {
                 <p className="mt-0.5 text-[0.8rem] text-muted">
                   요청 {fmtInstant(j.createdAt, { year: false })} · 체크 {done}/{j.checklist.length}
                   {j.completedAt && ` · 완료 ${fmtClock(j.completedAt)}`}
+                  {j.dueBy && active && <> · <JobDue j={j} s={s} /></>}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +136,7 @@ function HousekeepingBoard() {
                   {s.staff.filter((m) => m.team !== "MANAGER").map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
                 {active && dv?.available && (
-                  <Button size="sm" variant="soft" icon={Smartphone} onClick={() => dv.openInMobile(`/staff/tasks/${j.id}`)} data-testid={`hk-open-staff-${j.id}`}>
+                  <Button size="sm" variant="soft" icon={Smartphone} onClick={() => { setStaffPersonaFor(j.id); dv.openInMobile(`/staff/tasks/${j.id}`); }} data-testid={`hk-open-staff-${j.id}`}>
                     직원 앱
                   </Button>
                 )}

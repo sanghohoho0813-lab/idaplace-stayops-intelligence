@@ -85,7 +85,7 @@ export function makeSeed(now: string = nowIso(), keepUi?: Partial<UiPrefs>): Dem
       cl(["재시공 부위 건조 확인", "물 사용 후 누수 확인", "욕실 최종 청소"], 0), { roomId: "r202", assigneeId: "s3", blockedReason: "시공업체 재방문 일정 대기" }),
     T("pt08", "ACCESS", "203호 도어락 설치 점검", "설치된 도어락의 고정·배터리·비상키·문 닫힘 상태를 점검합니다. 실제 비밀번호 발급·원격제어 시험은 이번 단계 범위가 아닙니다.", 0, "IN_PROGRESS",
       cl(["도어락 본체 고정 상태 확인", "배터리 잔량·커버 체결 확인", "비상키 보관 위치 확인", "문 닫힘·자동잠김 동작 확인", ["설치 사진 기록 (데모)", false]], 1, ago(60 * 3), "s3"),
-      { roomId: "r203", assigneeId: "s1", blockedReason: "배터리 커버 고정 나사 오늘 입고 예정", costPlanned: 420000, costActual: 0 }),
+      { roomId: "r203", assigneeId: "s3", blockedReason: "배터리 커버 고정 나사 오늘 입고 예정", costPlanned: 420000, costActual: 0 }),
     T("pt09", "ACCESS", "도어락 공급사 상담·모델 비교", "솔리티·잇소키 등 후보 업체의 공식 API·지원 모델·유지보수 조건을 비교합니다. 계약·연동이 확정된 상태가 아닙니다.", 7, "TODO",
       cl(["상업용 API 제공 여부 확인", "PIN 발급/회수·기기 적용 확인(ACK) 지원 확인", "견적·유지보수 조건 수령"]), { assigneeId: "m1", required: false }),
     T("pt10", "SUPPLY", "침구 세트 입고 확인", "객실 5개 기준 침구 세트 입고·수량 확인을 마쳤습니다.", -4, "DONE",

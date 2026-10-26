@@ -10,7 +10,7 @@ import { Badge, Button, Card, CardHeader, DemoBadge, Field, inputCls, KV, PageHe
 import { Overlay } from "@/components/ui/Overlay";
 import { useToast } from "@/components/ui/Toast";
 import { addDays, diffDays, fmtDate, fmtDateKo, fmtInstant, kstDate, simNow, weekdayKo } from "@/domain/time";
-import { availableRooms, findConflicts, occupies, validateDraft, type DraftError, type ReservationDraft } from "@/domain/reservations";
+import { availableRooms, demoEstimate, findConflicts, occupies, validateDraft, type DraftError, type ReservationDraft } from "@/domain/reservations";
 import { maskName, won } from "@/domain/format";
 import { can } from "@/domain/permissions";
 import { cancelReservation, checkout, createReservation, regenerateGuestLink, updateReservation } from "@/lib/store/actions";
@@ -308,6 +308,11 @@ function ReservationForm({ open, onClose, onSaved, edit }: { open: boolean; onCl
         )}
         {err("form") && !liveConflicts.length && !conflictCodes.length && <p className="text-sm font-semibold text-danger">{err("form")}</p>}
         {live.errors.length === 0 && datesOk && <p className="text-[0.82rem] font-semibold text-success">저장 가능 — 겹치는 예약 없음 (체크아웃 당일 다음 체크인 허용 정책)</p>}
+        {datesOk && (
+          <p className="text-[0.8rem] text-ink-2" data-testid="res-estimate">
+            예약 예상 금액 (가상 요금표): <b className="tabular">{won(demoEstimate(s.rooms.find((x) => x.id === d.roomId)?.type, d.checkIn, d.checkOut))}</b> · {diffDays(d.checkIn, d.checkOut)}박 — 결제·매출 아님
+          </p>
+        )}
       </div>
     </Overlay>
   );

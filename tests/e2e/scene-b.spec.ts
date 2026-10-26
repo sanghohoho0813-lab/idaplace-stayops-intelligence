@@ -42,16 +42,30 @@ test("Scene B — 예약 → 중복 차단 → QR 체크인 → Demo 출입코�
   await expect(f.getByTestId("guest-request-status").first()).toHaveText("처리 완료");
   await expect(f.getByTestId("guest-requests")).toContainText("10분 내로");
 
-  // 5) 체크아웃 → 권한 만료 → 청소 생성
+  // 5) 입실 당일 체크아웃 시도 → '예정보다 이른 체크아웃' 안내
   await f.getByTestId("guest-checkout").click();
+  await expect(f.getByTestId("early-checkout-note")).toBeVisible();
+  await f.getByRole("button", { name: "취소", exact: true }).click();
+  // 퇴실일 아침으로 시뮬레이션 시각 이동 → 체크아웃 → 권한 만료 → 청소 생성
+  await page.getByTestId("sim-preset-next-morning").click();
+  await expect(page.getByTestId("sim-clock")).toContainText("11.06");
+  await f.getByTestId("guest-checkout").click();
+  await expect(f.getByTestId("early-checkout-note")).toHaveCount(0);
   await f.getByTestId("guest-checkout-confirm").click();
   await expect(f.getByTestId("checkout-done")).toBeVisible();
   await expect(f.getByTestId("access-code-expired")).toBeVisible();
   await expect.poll(() => demoState<string>(page, "(s) => s.accessGrants.find(g => g.roomId === 'r203').status")).toBe("EXPIRED");
   const jobId = await demoState<string>(page, "(s) => s.housekeepingJobs.find(j => j.roomId === 'r203' && j.source === 'AUTO_CHECKOUT').id");
 
+  // 같은 객실에 오늘 15:00 입실(DEMO-1106-05)이 있어 완료 기한·코치 우선순위가 생긴다
+  const due = await demoState<string>(page, `(s) => s.housekeepingJobs.find(j => j.id === '${jobId}').dueBy`);
+  expect(due).toBe(new Date("2026-11-06T15:00:00+09:00").toISOString());
+  await page.goto("/insights?scope=ops");
+  await expect(page.locator('[data-testid="coach-item"][data-target="r203"]')).toContainText("203호 오늘 입실 예정");
+
   // 6) 직원 청소 완료 → 객실 입실준비
   await page.goto("/operations?tab=housekeeping");
+  await expect(page.getByTestId(`hk-${jobId}`).getByTestId("job-due")).toHaveText("오늘 15:00 입실 전 완료");
   await page.getByTestId(`hk-open-staff-${jobId}`).click();
   await expect(f.getByTestId("staff-job-detail")).toBeVisible();
   await f.getByTestId("job-start").click();
@@ -60,7 +74,9 @@ test("Scene B — 예약 → 중복 차단 → QR 체크인 → Demo 출입코�
   await f.getByTestId("job-complete").click();
   await expect(f.getByTestId("job-done-banner")).toBeVisible();
   await page.goto("/operations?tab=rooms");
-  await expect(page.getByTestId("ops-room-203").getByTestId("ops-room-status")).toHaveText("입실준비 완료");
+  // 정비 완료 + 오늘 15:00 다음 손님 입실 예정
+  await expect(page.getByTestId("ops-room-203").getByTestId("ops-room-status")).toHaveText("준비완료 · 오늘 입실");
+  expect(await demoState<string>(page, "(s) => s.rooms.find(r => r.id === 'r203').opStatus")).toBe("VACANT_READY");
   const proofs = await demoState<string[]>(page, "(s) => s.proofEvents.map(p => p.event_type)");
   expect(proofs).toEqual(expect.arrayContaining(["CHECKIN_SELF_COMPLETED", "GUEST_REQUEST_RESOLVED", "CHECKOUT_TO_READY"]));
   expect(errors).toEqual([]);

@@ -8,7 +8,7 @@ import { ACCESS_LABEL } from "@/domain/access";
 import { RESERVATION_STATUS_LABEL } from "@/domain/reservations";
 import { ROOM_DISPLAY, roomDisplayStatus } from "@/domain/rooms";
 import { TASK_STATUS_LABEL, isOverdue } from "@/domain/readiness";
-import { fmtClock, kstDate, nowIso } from "@/domain/time";
+import { fmtClock, fmtDate, kstDate, nowIso, simNow, toMs } from "@/domain/time";
 import { useStore } from "@/components/providers/StoreProvider";
 
 export function useTodayKst() {
@@ -62,6 +62,21 @@ export const HK_STATUS: Record<HousekeepingJob["status"], { label: string; tone:
 };
 
 /** Data Freshness / Provenance — 이 숫자가 어디서 왔는가 (Master v4.0 §24) */
+/** 청소 완료 기한(다음 입실 시각) — 시뮬레이션 시각 기준 경과 여부 */
+export function JobDue({ j, s }: { j: HousekeepingJob; s: DemoState }) {
+  if (!j.dueBy || j.status === "DONE" || j.status === "CANCELLED") return null;
+  const clock = simNow(s.simulation);
+  const late = toMs(clock) > toMs(j.dueBy);
+  const day = kstDate(j.dueBy) === kstDate(clock) ? "오늘" : fmtDate(kstDate(j.dueBy), false);
+  return (
+    <span className={clsx("font-semibold", late ? "text-danger" : "text-warning")} data-testid="job-due">
+      {late
+        ? `${j.type === "CHECKOUT_CLEAN" ? "입실 기한" : "완료 기한"} ${day} ${fmtClock(j.dueBy)} 경과`
+        : `${day} ${fmtClock(j.dueBy)}${j.type === "CHECKOUT_CLEAN" ? " 입실 전 완료" : "까지 완료"}`}
+    </span>
+  );
+}
+
 export function Freshness({ className }: { className?: string }) {
   const s = useStore();
   return (

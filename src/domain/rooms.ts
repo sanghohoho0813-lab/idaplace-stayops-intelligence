@@ -27,7 +27,7 @@ export type RoomDisplayKey = "NOT_READY" | "READY" | "RESERVED_TODAY" | "OCCUPIE
 export const ROOM_DISPLAY: Record<RoomDisplayKey, { label: string; tone: "muted" | "success" | "info" | "primary" | "warning" | "accent" | "danger" }> = {
   NOT_READY: { label: "미준비", tone: "muted" },
   READY: { label: "입실준비 완료", tone: "success" },
-  RESERVED_TODAY: { label: "오늘 입실 예정", tone: "info" },
+  RESERVED_TODAY: { label: "준비완료 · 오늘 입실", tone: "info" },
   OCCUPIED: { label: "체크인 · 투숙중", tone: "primary" },
   DIRTY: { label: "청소 필요", tone: "warning" },
   CLEANING: { label: "청소중", tone: "accent" },
