@@ -31,11 +31,27 @@ interface TourStep {
   target?: string;
   onEnter?: (c: TourCtx) => void;
   actions?: { label: string; run: (c: TourCtx) => void; testId?: string }[];
-  checklist?: string[];
 }
 
 function latestDemoReservation(s: DemoState) {
   return [...s.reservations].filter((r) => r.dataSource === "DEMO_USER_INPUT").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+function openStaffTask(c: TourCtx, taskId: string) {
+  setStaffPersonaFor(taskId);
+  c.openInMobile(`/staff/tasks/${taskId}`);
+}
+
+function openGuestCheckin(c: TourCtx) {
+  const r = latestDemoReservation(c.s);
+  if (r?.guestToken && !r.guestToken.revoked) c.openInMobile(r.status === "CONFIRMED" ? `/guest/check-in/${r.guestToken.token}` : `/guest/stay/${r.guestToken.token}`);
+}
+
+function openCleaningJob(c: TourCtx) {
+  const job = c.s.housekeepingJobs.find((j) => j.source === "AUTO_CHECKOUT" && (j.status === "PENDING" || j.status === "IN_PROGRESS"));
+  if (!job) return c.openInMobile("/staff/tasks?tab=ops");
+  setStaffPersonaFor(job.id);
+  c.openInMobile(`/staff/tasks/${job.id}`);
 }
 
 export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
@@ -50,89 +66,67 @@ export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
     ],
   },
   presentation: {
-    label: "대표 미팅 시연 (약 4~5분)",
+    label: "시연",
     steps: [
       {
-        title: "① 지금은 개업 준비 단계입니다",
-        body: "허위 매출·가동률 없이 실제 사업 단계를 그대로 보여줍니다. 공사·시설·객실·비품·도어락 준비율과 오늘 책임자 업무를 한 화면에서 봅니다.",
+        title: "① 지금은 개업 준비 단계",
+        body: "매출·가동률 없이, 실제 준비 상황만 보여줍니다.",
         route: () => "/dashboard",
         target: "readiness",
         onEnter: () => setStage("PRE_OPENING"),
       },
       {
-        title: "② 203호 도어락 설치 점검",
-        body: "업무를 열면 담당자(시설 담당)·기한·체크리스트·미완료 사유가 보입니다. 오른쪽 모바일은 그 담당자의 현장직원 앱입니다 — 같은 데이터를 공유합니다.",
+        title: "② 직원이 휴대폰으로 완료",
+        body: "오른쪽 휴대폰: '해소됨' → 체크 3개 → 완료 보고",
         route: () => "/pre-opening?task=pt08",
         target: "task-detail",
-        actions: [{ label: "직원 앱에서 이 업무 열기", run: (c) => { setStaffPersonaFor("pt08"); c.openInMobile("/staff/tasks/pt08"); }, testId: "tour-open-staff-task" }],
+        onEnter: (c) => openStaffTask(c, "pt08"),
+        actions: [{ label: "휴대폰 다시 열기", run: (c) => openStaffTask(c, "pt08"), testId: "tour-open-staff-task" }],
       },
       {
-        title: "③ 모바일 완료 → PC 즉시 반영",
-        body: "모바일에서 체크리스트를 체크하고 '완료 보고'를 누르면 PC 준비율·알림·활동기록이 공통 저장소를 통해 바로 바뀝니다.",
+        title: "③ PC에 바로 반영",
+        body: "준비율·알림이 방금 바뀐 것을 확인합니다.",
         route: () => "/dashboard",
         target: "readiness",
-        checklist: ["모바일: 미완료 사유(나사 입고) '해소됨'", "모바일: 남은 체크리스트 체크 → 완료 보고", "PC: 준비율 · 알림 · 활동기록 변화 확인"],
       },
       {
-        title: "④ AI 개업 코치 → 사람의 조치 → 증거",
-        body: "규칙 기반으로 지연·마감 임박 필수 업무를 근거와 함께 보여줍니다. 업체 재방문을 기다리는 업무에는 '오늘 업체 일정 확정'처럼 막힌 원인에 맞는 조치를 추천합니다. 승인하면 담당자 앱 상단에 노출되고, 완료 시 Proof Event가 남습니다. 개업 가능 여부를 법적으로 판정하지 않습니다.",
+        title: "④ AI 코치 추천 → 승인",
+        body: "첫 번째 추천의 주황색 버튼을 누릅니다.",
         route: () => "/insights",
         target: "coach-list",
       },
       {
-        title: "⑤ 미래 운영 시뮬레이션 — 예약 등록",
-        body: "여기서부터는 명확한 DEMO입니다. 201호 11/05~11/06은 기존 예약과 겹쳐 저장이 막히고, 203호는 다음 손님(11/06 입실)과 붙어도 저장됩니다.",
+        title: "⑤ 예약 등록 (가상 운영)",
+        body: "'203호' 버튼 → 예약 저장 (201호는 중복이라 막힘)",
         route: () => "/reservations?new=1",
         target: "reservation-form",
         onEnter: () => setStage("SIMULATION"),
       },
       {
-        title: "⑥ QR 셀프 체크인 → Demo 출입코드",
-        body: "QR은 예약 토큰만 담습니다. 휴대폰 뒤 4자리 + 데모 인증번호로 본인 확인 후 출입권한을 요청합니다. 요청 수락과 기기 적용 확인을 구분하고, 실패 시 '입실 가능'을 안내하지 않습니다.",
+        title: "⑥ 고객 셀프 체크인",
+        body: "휴대폰: 체크인 시작 → 6789 → 인증번호 입력 → 동의 3개 → 체크인",
         route: (s) => {
           const r = latestDemoReservation(s);
           return r ? `/reservations?r=${r.id}` : "/reservations";
         },
         target: "guest-link",
-        actions: [
-          {
-            label: "고객 화면(모바일)으로 체크인",
-            run: (c) => {
-              const r = latestDemoReservation(c.s) ?? c.s.reservations.find((x) => x.code === "DEMO-1105-02");
-              if (r?.guestToken) c.openInMobile(`/guest/check-in/${r.guestToken.token}`);
-            },
-            testId: "tour-open-guest",
-          },
-          { label: "출입권한 화면 보기", run: (c) => c.push("/access") },
-        ],
+        onEnter: (c) => openGuestCheckin(c),
+        actions: [{ label: "휴대폰 다시 열기", run: (c) => openGuestCheckin(c), testId: "tour-open-guest" }],
       },
       {
-        title: "⑦ 다음날 아침 체크아웃 → 청소 → 입실준비 · 실증 기록",
-        body: "시뮬레이션 시각을 퇴실일 아침으로 옮긴 뒤 고객 화면에서 체크아웃합니다. 출입권한이 만료(시뮬레이션)되고 청소 작업이 자동 생성되며, 같은 객실에 오늘 15:00 입실 손님이 있어 '입실 전 완료'가 우선순위로 보입니다. 직원 앱에서 청소를 완료하면 입실준비로 바뀌고 Evidence에 기록됩니다.",
+        title: "⑦ 다음날 아침 체크아웃 → 청소",
+        body: "휴대폰에서 체크아웃 → '청소하기' → 체크 4개 → 완료",
         route: () => "/operations?tab=housekeeping",
         target: "housekeeping-list",
+        onEnter: (c) => {
+          // 체크인 직후 체크아웃은 비현실적 → 퇴실일 아침으로 시각 이동
+          const r = latestDemoReservation(c.s);
+          const day = r ? r.checkOut : addDays(kstDate(simNow(c.s.simulation)), 1);
+          setSimClock(atKst(day, "10:40"), axActor(c.s));
+        },
         actions: [
-          {
-            label: "퇴실일 아침 10:40으로 이동",
-            testId: "tour-sim-morning",
-            run: (c) => {
-              const r = latestDemoReservation(c.s);
-              const day = r ? r.checkOut : addDays(kstDate(simNow(c.s.simulation)), 1);
-              setSimClock(atKst(day, "10:40"), axActor(c.s));
-            },
-          },
-          {
-            label: "직원 앱(청소) 열기",
-            run: (c) => {
-              const job = c.s.housekeepingJobs.find((j) => j.source === "AUTO_CHECKOUT" && (j.status === "PENDING" || j.status === "IN_PROGRESS"));
-              if (job) {
-                setStaffPersonaFor(job.id);
-                c.openInMobile(`/staff/tasks/${job.id}`);
-              } else c.openInMobile("/staff/tasks?tab=ops");
-            },
-          },
-          { label: "실증·Evidence 보기", run: (c) => c.push("/evidence") },
-          { label: "기획의도 보기", run: (c) => c.push("/why-ax") },
+          { label: "청소하기 (직원 휴대폰)", run: (c) => openCleaningJob(c), testId: "tour-open-cleaning" },
+          { label: "실증 기록 보기", run: (c) => c.push("/evidence") },
         ],
       },
     ],
@@ -140,7 +134,7 @@ export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
 };
 
 // ───────── 간단한 전역 Tour Store (탭 단위, 화면 공유 안 함) ─────────
-type TourState = { id: TourId; step: number } | null;
+type TourState = { id: TourId; step: number; run?: number } | null;
 let tourState: TourState = null;
 const subs = new Set<() => void>();
 const KEY = "stayops-tour";
@@ -154,7 +148,7 @@ function emit() {
   subs.forEach((f) => f());
 }
 export function startTour(id: TourId) {
-  tourState = { id, step: 0 };
+  tourState = { id, step: 0, run: Date.now() };
   emit();
 }
 export function stopTour() {
@@ -230,6 +224,19 @@ function Spotlight({ target }: { target?: string }) {
   );
 }
 
+/** 모달·드로어가 열려 있으면 안내 카드를 상단 한 줄로 줄여 버튼을 가리지 않게 한다 */
+function useOverlayOpen(active: boolean) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const check = () => setOpen(!!document.querySelector("[data-overlay-backdrop]"));
+    check();
+    const iv = setInterval(check, 200);
+    return () => clearInterval(iv);
+  }, [active]);
+  return active && open;
+}
+
 export function TourHost() {
   const tour = useTour();
   const s = useStore();
@@ -239,6 +246,7 @@ export function TourHost() {
   const { isFrame } = useFrame();
   const def = tour && !isFrame ? TOURS[tour.id] : null;
   const step = def && tour ? def.steps[tour.step] : null;
+  const compact = useOverlayOpen(!!step);
 
   const ctx: TourCtx = {
     s,
@@ -268,7 +276,7 @@ export function TourHost() {
       if (r && !r.startsWith(pathname)) router.push(r);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tour?.id]);
+  }, [tour?.id, tour?.run]);
 
   if (!tour || !def || !step) return null;
   const last = tour.step === def.steps.length - 1;
@@ -276,6 +284,30 @@ export function TourHost() {
     if (tour.id === "tutorial") markTutorialSeen();
     stopTour();
   };
+  if (compact) {
+    return (
+      <div
+        role="dialog"
+        aria-label={`${def.label} ${tour.step + 1}/${def.steps.length}`}
+        data-testid="tour-card"
+        data-compact="true"
+        className="fixed left-1/2 top-2 z-[90] flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 shadow-pop"
+      >
+        <span className="shrink-0 rounded-md bg-primary px-1.5 py-0.5 text-[0.72rem] font-extrabold text-primary-fg tabular">
+          {tour.step + 1}/{def.steps.length}
+        </span>
+        <p className="min-w-0 flex-1 truncate text-[0.84rem] font-bold" title={step.body}>{step.body}</p>
+        {!last && (
+          <button type="button" onClick={() => go(tour.step + 1)} className="press shrink-0 rounded-lg bg-primary px-2.5 py-1 text-[0.78rem] font-bold text-primary-fg" data-testid="tour-next">
+            다음
+          </button>
+        )}
+        <button type="button" onClick={finish} className="press shrink-0 rounded-lg p-1 text-muted hover:bg-surface-2" aria-label="닫기" data-testid="tour-exit">
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+    );
+  }
   return (
     <>
       <Spotlight target={step.target} />
@@ -301,18 +333,8 @@ export function TourHost() {
             <span key={i} className={clsx("h-1 flex-1 rounded-full", i <= tour.step ? "bg-primary" : "bg-line")} />
           ))}
         </div>
-        <h3 className="mt-3 text-[1.05rem] font-bold leading-snug">{step.title}</h3>
-        <p className="mt-1.5 text-[0.88rem] text-ink-2">{step.body}</p>
-        {step.checklist && (
-          <ul className="mt-2 space-y-1 text-[0.82rem] text-ink-2">
-            {step.checklist.map((c) => (
-              <li key={c} className="flex gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                {c}
-              </li>
-            ))}
-          </ul>
-        )}
+        <h3 className="mt-3 text-[1.1rem] font-extrabold leading-snug">{step.title}</h3>
+        <p className="mt-1 text-[0.9rem] font-semibold text-ink-2">{step.body}</p>
         {step.actions && (
           <div className="mt-3 flex flex-wrap gap-2">
             {step.actions.map((a) => (
@@ -323,9 +345,11 @@ export function TourHost() {
           </div>
         )}
         <div className="mt-4 flex items-center gap-2">
-          <button type="button" onClick={finish} className="press text-[0.8rem] font-semibold text-muted hover:text-ink" data-testid="tour-skip">
-            건너뛰기
-          </button>
+          {tour.id === "tutorial" && (
+            <button type="button" onClick={finish} className="press text-[0.8rem] font-semibold text-muted hover:text-ink" data-testid="tour-skip">
+              건너뛰기
+            </button>
+          )}
           <button type="button" disabled={tour.step === 0} onClick={() => go(tour.step - 1)} className="press ml-auto flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-[0.82rem] font-semibold disabled:opacity-40" data-testid="tour-back">
             <ChevronLeft className="h-4 w-4" aria-hidden /> 이전
           </button>

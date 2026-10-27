@@ -25,7 +25,7 @@ npm run build && npm run start   # 프로덕션 모드
 npm run typecheck    # TypeScript
 npm run lint         # ESLint
 npm test             # 단위 테스트 (Vitest · 도메인 규칙 47개)
-npm run test:e2e     # E2E (Playwright · 24개 · 개발 서버 자동 실행/재사용)
+npm run test:e2e     # E2E (Playwright · 25개 · 개발 서버 자동 실행/재사용)
 E2E_PROD=1 npm run test:e2e   # 프로덕션 빌드로 E2E
 ```
 

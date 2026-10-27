@@ -76,10 +76,31 @@ test("시연 모드 7 Step이 실제 Route를 이동", async ({ page }) => {
   // ⑦ 체크아웃은 퇴실일 아침으로 시각을 옮긴 뒤 진행
   for (let i = 0; i < 2; i++) await page.getByTestId("tour-next").click();
   await expect(page.getByTestId("tour-card")).toContainText("7/7");
-  await page.getByTestId("tour-sim-morning").click();
-  await expect(page.getByTestId("sim-clock")).toContainText("11.06");
+  await expect(page.getByTestId("sim-clock")).toContainText("11.06"); // ⑦ 진입 시 퇴실일 아침으로 자동 이동
   await page.getByTestId("tour-exit").click();
   await expect(page.getByTestId("tour-card")).toHaveCount(0);
+});
+
+test("시연 모드를 다시 시작하면 이전 시연 데이터와 상관없이 처음 상태로 복구", async ({ page }) => {
+  // 이전 시연 흔적: 체크리스트 진행 + 시뮬레이션 단계·시각 변경
+  await page.goto("/pre-opening?task=pt08");
+  await page.getByTestId("check-c2").click();
+  await page.goto("/presentation");
+  await page.getByTestId("start-presentation").click();
+  for (let i = 0; i < 6; i++) await page.getByTestId("tour-next").click();
+  await expect(page.getByTestId("tour-card")).toContainText("7/7");
+  await page.getByTestId("tour-exit").click();
+  // 다시 켜기
+  await page.goto("/presentation");
+  await page.getByTestId("start-presentation").click();
+  await expect(page.getByTestId("tour-card")).toContainText("1/7");
+  await expect(page).toHaveURL(/dashboard/);
+  const st = await demoState<{ done: number; stage: string; clock: string; res: number }>(
+    page,
+    "(s) => ({ done: s.openingTasks.find(t => t.id === 'pt08').checklist.filter(c => c.done).length, stage: s.ui.stage, clock: s.simulation.clock, res: s.reservations.length })",
+  );
+  expect(st).toEqual({ done: 1, stage: "PRE_OPENING", clock: new Date("2026-11-05T15:20:00+09:00").toISOString(), res: 6 });
+  await page.getByTestId("tour-exit").click();
 });
 
 test("Demo Reset 반복 시 같은 초기 상태로 복귀", async ({ page }) => {
