@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { ChevronLeft, ChevronRight, X, Presentation as PresIcon, GraduationCap } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, GraduationCap } from "lucide-react";
 import { forceUnlockScroll } from "@/components/ui/overlay-utils";
 import { useDeviceView, useFrame } from "@/components/device/DeviceView";
 import { useStore } from "@/components/providers/StoreProvider";
@@ -37,9 +37,9 @@ function latestDemoReservation(s: DemoState) {
   return [...s.reservations].filter((r) => r.dataSource === "DEMO_USER_INPUT").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
-function openStaffTask(c: TourCtx, taskId: string) {
-  setStaffPersonaFor(taskId);
-  c.openInMobile(`/staff/tasks/${taskId}`);
+function journeyPath(s: DemoState) {
+  const r = latestDemoReservation(s);
+  return r ? `/journey?r=${r.id}` : "/journey";
 }
 
 function openGuestCheckin(c: TourCtx) {
@@ -69,63 +69,59 @@ export const TOURS: Record<TourId, { label: string; steps: TourStep[] }> = {
     label: "시연",
     steps: [
       {
-        title: "① 지금은 개업 준비 단계",
-        body: "매출·가동률 없이, 실제 준비 상황만 보여줍니다.",
+        title: "① 가상 운영 하루 (11/05 15:20)",
+        body: "왼쪽 = 우리 운영 화면, 오른쪽 = 휴대폰. 모든 데이터는 가상입니다.",
         route: () => "/dashboard",
-        target: "readiness",
-        onEnter: () => setStage("PRE_OPENING"),
+        onEnter: (c) => {
+          setStage("SIMULATION");
+          c.openInMobile("/staff/tasks?tab=ops");
+        },
       },
       {
-        title: "② 직원이 휴대폰으로 완료",
-        body: "오른쪽 휴대폰: '해소됨' → 체크 3개 → 완료 보고",
-        route: () => "/pre-opening?task=pt08",
-        target: "task-detail",
-        onEnter: (c) => openStaffTask(c, "pt08"),
-        actions: [{ label: "휴대폰 다시 열기", run: (c) => openStaffTask(c, "pt08"), testId: "tour-open-staff-task" }],
-      },
-      {
-        title: "③ PC에 바로 반영",
-        body: "준비율·알림이 방금 바뀐 것을 확인합니다.",
-        route: () => "/dashboard",
-        target: "readiness",
-      },
-      {
-        title: "④ AI 코치 추천 → 승인",
-        body: "첫 번째 추천의 주황색 버튼을 누릅니다.",
-        route: () => "/insights",
-        target: "coach-list",
-      },
-      {
-        title: "⑤ 예약 등록 (가상 운영)",
+        title: "② 예약 등록",
         body: "'203호' 버튼 → 예약 저장 (201호는 중복이라 막힘)",
         route: () => "/reservations?new=1",
         target: "reservation-form",
-        onEnter: () => setStage("SIMULATION"),
       },
       {
-        title: "⑥ 고객 셀프 체크인",
-        body: "휴대폰: 체크인 시작 → 6789 → 인증번호 입력 → 동의 3개 → 체크인",
-        route: (s) => {
-          const r = latestDemoReservation(s);
-          return r ? `/reservations?r=${r.id}` : "/reservations";
-        },
-        target: "guest-link",
+        title: "③ 고객 셀프 체크인 — 실시간 연동",
+        body: "휴대폰: 체크인 시작 → 6789 → 인증번호 → 동의 → 체크인. 왼쪽 단계가 바로 켜집니다.",
+        route: (s) => journeyPath(s),
+        target: "journey-steps",
         onEnter: (c) => openGuestCheckin(c),
         actions: [{ label: "휴대폰 다시 열기", run: (c) => openGuestCheckin(c), testId: "tour-open-guest" }],
       },
       {
-        title: "⑦ 다음날 아침 체크아웃 → 청소",
-        body: "휴대폰에서 체크아웃 → '청소하기' → 체크 4개 → 완료",
-        route: () => "/operations?tab=housekeeping",
-        target: "housekeeping-list",
+        title: "④ 도어락 열기",
+        body: "휴대폰의 코드 6자리를 오른쪽 '가상 도어락'에 입력 → #확인 → 문 열림",
+        route: (s) => journeyPath(s),
+        target: "virtual-lock",
+      },
+      {
+        title: "⑤ 고객 문의 ↔ 운영 답변",
+        body: "휴대폰: 문의 보내기 → PC: 답변 입력 후 '처리 완료' → 휴대폰에 바로 표시",
+        route: () => "/operations?tab=requests",
+      },
+      {
+        title: "⑥ 다음날 아침 체크아웃 → 출입권한 만료",
+        body: "휴대폰: 체크아웃 → 왼쪽 마지막 단계 '만료' · 청소 자동 생성",
+        route: (s) => journeyPath(s),
+        target: "journey-steps",
         onEnter: (c) => {
-          // 체크인 직후 체크아웃은 비현실적 → 퇴실일 아침으로 시각 이동
           const r = latestDemoReservation(c.s);
           const day = r ? r.checkOut : addDays(kstDate(simNow(c.s.simulation)), 1);
           setSimClock(atKst(day, "10:40"), axActor(c.s));
+          openGuestCheckin(c);
         },
+      },
+      {
+        title: "⑦ 현장직원 청소 → 운영 화면 반영",
+        body: "직원 휴대폰: 청소 시작 → 체크 4개 → 완료 → 왼쪽 객실이 '준비완료'로",
+        route: () => "/operations?tab=housekeeping",
+        target: "housekeeping-list",
+        onEnter: (c) => openCleaningJob(c),
         actions: [
-          { label: "청소하기 (직원 휴대폰)", run: (c) => openCleaningJob(c), testId: "tour-open-cleaning" },
+          { label: "직원 휴대폰 다시 열기", run: (c) => openCleaningJob(c), testId: "tour-open-cleaning" },
           { label: "실증 기록 보기", run: (c) => c.push("/evidence") },
         ],
       },
@@ -284,28 +280,55 @@ export function TourHost() {
     if (tour.id === "tutorial") markTutorialSeen();
     stopTour();
   };
-  if (compact) {
+  // 시연: 화면을 가리지 않는 얇은 안내 띠 (창이 열리면 위, 아니면 아래)
+  if (tour.id === "presentation" || compact) {
     return (
-      <div
-        role="dialog"
-        aria-label={`${def.label} ${tour.step + 1}/${def.steps.length}`}
-        data-testid="tour-card"
-        data-compact="true"
-        className="fixed left-1/2 top-2 z-[90] flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 shadow-pop"
-      >
-        <span className="shrink-0 rounded-md bg-primary px-1.5 py-0.5 text-[0.72rem] font-extrabold text-primary-fg tabular">
-          {tour.step + 1}/{def.steps.length}
-        </span>
-        <p className="min-w-0 flex-1 truncate text-[0.84rem] font-bold" title={step.body}>{step.body}</p>
-        {!last && (
-          <button type="button" onClick={() => go(tour.step + 1)} className="press shrink-0 rounded-lg bg-primary px-2.5 py-1 text-[0.78rem] font-bold text-primary-fg" data-testid="tour-next">
-            다음
-          </button>
-        )}
-        <button type="button" onClick={finish} className="press shrink-0 rounded-lg p-1 text-muted hover:bg-surface-2" aria-label="닫기" data-testid="tour-exit">
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
+      <>
+        {!compact && <Spotlight target={step.target} />}
+        <div
+          role="dialog"
+          aria-label={`${def.label} ${tour.step + 1}/${def.steps.length}`}
+          data-testid="tour-card"
+          data-compact={compact ? "true" : "false"}
+          className={clsx(
+            "fixed left-1/2 z-[90] flex w-[min(760px,calc(100%-24px))] -translate-x-1/2 flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-surface px-3.5 py-2.5 shadow-pop",
+            compact ? "top-2" : "bottom-3",
+          )}
+        >
+          <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[0.78rem] font-extrabold text-primary-fg tabular">
+            {tour.step + 1}/{def.steps.length}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[0.92rem] font-extrabold">{step.title}</p>
+            <p className="text-[0.84rem] font-semibold text-ink-2">{step.body}</p>
+          </div>
+          {!compact &&
+            step.actions?.map((a) => (
+              <button key={a.label} type="button" data-testid={a.testId} onClick={() => a.run(ctx)} className="press shrink-0 rounded-lg bg-soft px-2.5 py-1.5 text-[0.76rem] font-bold text-primary-ink hover:bg-primary/15">
+                {a.label}
+              </button>
+            ))}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {!compact && (
+              <button type="button" disabled={tour.step === 0} onClick={() => go(tour.step - 1)} className="press rounded-lg border border-line px-2 py-1.5 disabled:opacity-40" aria-label="이전" data-testid="tour-back">
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+            {last ? (
+              <button type="button" onClick={finish} className="press rounded-lg bg-primary px-3 py-1.5 text-[0.8rem] font-bold text-primary-fg" data-testid="tour-finish">
+                완료
+              </button>
+            ) : (
+              <button type="button" onClick={() => go(tour.step + 1)} className="press flex items-center gap-0.5 rounded-lg bg-primary px-3 py-1.5 text-[0.8rem] font-bold text-primary-fg" data-testid="tour-next">
+                다음 <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+            <button type="button" onClick={finish} className="press rounded-lg p-1.5 text-muted hover:bg-surface-2" aria-label="닫기" data-testid="tour-exit">
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+        </div>
+      </>
     );
   }
   return (
@@ -318,8 +341,8 @@ export function TourHost() {
         className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3 z-[90] animate-fade-up rounded-2xl border border-line bg-surface p-4 shadow-pop @md/shell:bottom-6 @md/shell:right-auto @md/shell:w-[420px] @lg/shell:left-[108px] @xl/shell:left-[296px]"
       >
         <div className="flex items-center gap-2">
-          <span className={clsx("flex h-8 w-8 items-center justify-center rounded-lg", tour.id === "presentation" ? "bg-primary text-primary-fg" : "bg-soft text-primary-ink")}>
-            {tour.id === "presentation" ? <PresIcon className="h-4 w-4" aria-hidden /> : <GraduationCap className="h-4 w-4" aria-hidden />}
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-soft text-primary-ink">
+            <GraduationCap className="h-4 w-4" aria-hidden />
           </span>
           <p className="text-[0.75rem] font-bold text-muted">
             {def.label} · {tour.step + 1}/{def.steps.length}

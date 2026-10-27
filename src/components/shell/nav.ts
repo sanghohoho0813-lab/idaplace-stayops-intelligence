@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard, ClipboardCheck, BedDouble, CalendarRange, KeyRound, BrainCircuit, ShieldCheck, Lightbulb, Settings, Presentation, Rocket,
+  LayoutDashboard, ClipboardCheck, BedDouble, CalendarRange, KeyRound, BrainCircuit, ShieldCheck, Lightbulb, Settings, Presentation, Rocket, DoorOpen,
 } from "lucide-react";
 import type { Permission } from "@/domain/permissions";
 
@@ -38,6 +38,7 @@ export const NAV: NavGroup[] = [
     label: "예약·고객",
     items: [
       { href: "/reservations", label: "예약·객실", icon: CalendarRange, perm: "view.reservations", sim: true, testId: "nav-reservations" },
+      { href: "/journey", label: "실시간 출입 흐름", icon: DoorOpen, perm: "view.access", sim: true, testId: "nav-journey" },
       { href: "/access", label: "출입권한", icon: KeyRound, perm: "view.access", sim: true, testId: "nav-access" },
     ],
   },

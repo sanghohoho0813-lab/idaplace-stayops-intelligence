@@ -47,6 +47,7 @@ E2E_PROD=1 npm run test:e2e   # 프로덕션 빌드로 E2E
 | | `/pre-opening` | 개업 준비 체크리스트 · 업무 상세(담당·마감·체크리스트·사유·사진 기록) · 추가/수정/완료/취소/철회 |
 | | `/reservations` | 룸별 예약 타임라인 · 신규/변경/취소 · 중복 차단 · 체크인 QR 링크 |
 | | `/operations` | 청소·점검 / 객실 상태 / 고객 문의 / 긴급 확인 |
+| | `/journey` | 실시간 출입 흐름 (고객 휴대폰 ↔ 운영 화면 ↔ 가상 도어락) |
 | | `/access` | 출입권한 상태·이력 · `NO LIVE LOCK CONNECTED` · 장애 시나리오 |
 | | `/insights` | AI 운영 코치 (규칙 기반 진단 · AI Ready) |
 | | `/evidence` | Proof Event · 12주 실증 계획 · Money KPI 3 · Baseline 미확보 |

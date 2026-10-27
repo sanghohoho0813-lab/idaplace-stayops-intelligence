@@ -12,7 +12,7 @@ import { DeviceSwitch } from "@/components/device/DeviceViewShell";
 import { useDeviceView, useFrame } from "@/components/device/DeviceView";
 import { forceUnlockScroll, lockScroll, unlockScroll } from "@/components/ui/overlay-utils";
 import { LinkButton } from "@/components/ui/primitives";
-import { TourHost } from "@/components/tour/Tour";
+import { TourHost, useTour } from "@/components/tour/Tour";
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", hour: "2-digit", hour12: false }).format(new Date()));
@@ -90,10 +90,12 @@ function NavLinkItem({ item, groupId, active, compact, onNavigate }: { item: Nav
 function SidebarNav({ compact, onNavigate }: { compact: boolean; onNavigate?: () => void }) {
   const s = useStore();
   const pathname = usePathname();
+  const presenting = useTour()?.id === "presentation";
   return (
     <nav aria-label="Business AX 메뉴" className="flex flex-col gap-3" data-tour="sidebar">
       {NAV.map((g) => {
-        const items = g.items.filter((i) => can(s.ui.role, i.perm));
+        // 시연 중에는 가상 운영 데이터만 보여준다 (개업 준비 메뉴 숨김)
+        const items = g.items.filter((i) => can(s.ui.role, i.perm) && !(presenting && i.href === "/pre-opening"));
         if (!items.length) return null;
         return (
           <div key={g.id}>

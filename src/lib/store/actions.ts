@@ -548,6 +548,28 @@ export function approveCheckin(sessionId: string, actor: Actor): { ok: boolean; 
   return { ok: true, message: "체크인 승인 — 출입코드를 준비하고 있습니다.", reservationId: cs.reservationId };
 }
 
+/** 가상 도어락 키패드에 코드 입력 — 도어락 적용 확인된 권한 + 유효기간 + 코드 일치 시에만 '문 열림' (시뮬레이션) */
+export function tryDoorUnlock(reservationId: string, code: string, actor: Actor): { ok: boolean; message: string } {
+  const s = getSnapshot();
+  const g = s.accessGrants.find((x) => x.reservationId === reservationId && x.status === "DEMO_CONFIRMED");
+  const r = s.reservations.find((x) => x.id === reservationId);
+  if (!g || !r) return { ok: false, message: "이 객실에 적용된 출입권한이 없습니다." };
+  const now = simTsNow();
+  const inWindow = toMs(now) >= toMs(g.startsAt) && toMs(now) < toMs(g.endsAt);
+  const ok = inWindow && code === g.demoCode;
+  commit((d) => {
+    const gg = d.accessGrants.find((x) => x.id === g.id)!;
+    gg.doorEvents = [...(gg.doorEvents ?? []), { at: now, ok }];
+    const room = roomNo(d, gg.roomId);
+    log(d, actor, ok ? "DOOR_UNLOCK" : "DOOR_DENIED", ok ? `${room}호 가상 도어락 열림 — 고객 입실 확인 (시뮬레이션)` : `${room}호 가상 도어락 코드 불일치 — 문 열리지 않음`, { type: "ACCESS_GRANT", id: gg.id });
+    if (ok && (gg.doorEvents ?? []).filter((e) => e.ok).length === 1) {
+      notify(d, { level: "SUCCESS", title: `${room}호 입실 확인`, body: `가상 도어락 열림 · ${kstTime(now)} (실제 도어락 미연동)`, link: `/journey?r=${reservationId}`, audience: "OPS" });
+    }
+  });
+  if (ok) return { ok: true, message: "문이 열렸습니다 (가상)" };
+  return { ok: false, message: inWindow ? "코드가 일치하지 않습니다" : "출입 가능 시간이 아닙니다" };
+}
+
 // ───────── 체크아웃 → 청소 (Scene B) ─────────
 
 export function checkout(reservationId: string, actor: Actor): { ok: boolean; message: string; jobId?: string } {

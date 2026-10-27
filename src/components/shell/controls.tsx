@@ -11,6 +11,7 @@ import { fmtClock, fmtDate, kstDate, relativeKo, WEEKDAYS_KO, addMinutes, atKst,
 import type { RoleId, Stage } from "@/domain/types";
 import { axActor } from "@/lib/store/actor";
 import { SIM_DEFAULT_CLOCK } from "@/domain/seed";
+import { useTour } from "@/components/tour/Tour";
 
 /** 시뮬레이션 시각은 실제 시간만큼 흐른다 — 화면 표시는 15초마다 갱신 */
 export function useSimNow() {
@@ -87,10 +88,13 @@ export function LiveClock({ compact = false, noIcon = false }: { compact?: boole
 export function StageToggle({ full = false }: { full?: boolean }) {
   const s = useStore();
   const router = useRouter();
+  const tour = useTour();
   const opts: { v: Stage; label: string; short: string; Icon: typeof HardHat }[] = [
     { v: "PRE_OPENING", label: "개업 준비 · 현재 단계", short: "개업 준비", Icon: HardHat },
     { v: "SIMULATION", label: "미래 운영 시뮬레이션", short: "운영 시뮬레이션", Icon: FlaskConical },
   ];
+  // 시연 중에는 단계 전환을 숨겨 개업 준비 화면과 섞이지 않게 한다
+  if (tour?.id === "presentation") return null;
   return (
     <div role="tablist" aria-label="사업 단계" data-testid="stage-toggle" data-tour="stage-toggle" className={clsx("flex rounded-xl border border-line bg-surface-2 p-1", full && "w-full")}>
       {opts.map(({ v, label, short, Icon }) => {

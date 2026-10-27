@@ -15,7 +15,7 @@
 | 실증 (Proof Event·12주 계획·Money KPI 3) | ✅ 구조·데모 기록 (Baseline 미확보) |
 
 ## 실제로 구현된 것
-- Route: `/dashboard` `/pre-opening` `/reservations` `/operations` `/access` `/insights` `/evidence` `/why-ax` `/settings` `/presentation` `/future` `/staff/tasks` `/staff/tasks/[id]` `/staff/rooms` `/guest` `/guest/check-in/[token]` `/guest/stay/[token]`
+- Route: `/dashboard` `/pre-opening` `/reservations` `/operations` `/journey` `/access` `/insights` `/evidence` `/why-ax` `/settings` `/presentation` `/future` `/staff/tasks` `/staff/tasks/[id]` `/staff/rooms` `/guest` `/guest/check-in/[token]` `/guest/stay/[token]`
 - API: `GET /api/access/config` · `POST /api/access/provision` · `GET /api/access/status` · `POST /api/access/revoke` (DemoAccessProvider, Stateless, HMAC 서명 참조)
 - 데이터: DemoRepository (localStorage `stayops-demo:v1` + BroadcastChannel) · Seed(가상 호스텔 1 · 객실 5 · 개업 준비 업무 14 · 예약 6 · 문의 2 · 청소 3)
 - 역할: 이다플레이스 서비스관리자 / 이다컴퍼니 운영관리자 / 현장직원 / 체크인 고객(데모) — 메뉴·KPI·버튼·민감정보 실제 변화
@@ -66,6 +66,7 @@
 10. 실제 현장 사진 (공사 완료 후)
 
 ## 최근 주요 변경
+- 시연 재구성(10/27): 가상 운영 데이터만 사용(시연 중 개업 준비 메뉴·단계 전환 숨김), `/journey` 실시간 출입 흐름(예약→본인확인→발급요청→수락→도어락 적용→문 열림→만료) + 가상 도어락 키패드(코드 원문 미기록), 고객 화면 '문 열림 확인', 시연 안내를 하단 얇은 띠로 변경
 - 시연 모드 간소화(10/27): 단계별 안내를 한 줄로 축소, 직원/고객 휴대폰 열기·다음날 아침 이동 자동화, 모달이 열리면 안내 카드를 상단 한 줄로 축소(버튼 가림 해결), **시연 시작 시마다 데이터 자동 초기화**
 - 현실성 점검(10/26): 다음날 아침 체크아웃 흐름, 퇴실 청소 '다음 입실 전' 기한·부하 기준 배정, 도어락 점검 시설 담당 배정 + 담당자 직원 앱으로 열기, 외부 대기 업무 코치 추천 수정, 노쇼 확인 규칙, 객실 유형별 가상 요금, 신원 확인 문구 정리, 대시보드 객실 배지 잘림 수정 (`QA_REPORT.md` §7, `DECISIONS.md` D-13)
 - First Build: 도메인·저장소·Device View·Scene A/B·장애·완성 레이어·E2E

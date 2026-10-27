@@ -31,6 +31,26 @@ test("Scene B — 예약 → 중복 차단 → QR 체크인 → Demo 출입코�
   const hist = await demoState<string[]>(page, "(s) => s.accessGrants.find(g => g.roomId === 'r203').history.map(h => h.status)");
   expect(hist).toEqual(["PENDING", "DEMO_PROVISIONED", "DEMO_CONFIRMED"]);
 
+  // 3-1) 실시간 출입 흐름 + 가상 도어락: 틀린 코드는 잠김 유지, 맞는 코드면 열림 → 고객 화면 '문 열림 확인'
+  const code = (await f.getByTestId("guest-access-code").textContent())!.trim();
+  const rid = await demoState<string>(page, "(s) => s.reservations.find(r => r.roomId === 'r203' && r.dataSource === 'DEMO_USER_INPUT').id");
+  await page.keyboard.press("Escape");
+  await page.goto(`/journey?r=${rid}`);
+  await expect(page.getByTestId("journey-apply")).toHaveAttribute("data-state", "done");
+  await expect(page.getByTestId("journey-unlock")).toHaveAttribute("data-state", "todo");
+  const wrong = code === "000000" ? "111111" : "000000";
+  for (const k of wrong) await page.getByTestId(`lock-key-${k}`).click();
+  await page.getByTestId("lock-key-ok").click();
+  await expect(page.getByTestId("lock-result")).toContainText("일치하지 않습니다");
+  await expect(page.getByTestId("lock-state")).toContainText("잠김");
+  for (const k of code) await page.getByTestId(`lock-key-${k}`).click();
+  await page.getByTestId("lock-key-ok").click();
+  await expect(page.getByTestId("lock-state")).toContainText("열림");
+  await expect(page.getByTestId("journey-unlock")).toHaveAttribute("data-state", "done");
+  await expect(f.getByTestId("guest-door-opened")).toBeVisible();
+  const doorLog = await demoState<string>(page, "(s) => JSON.stringify(s.activity.filter(a => a.type.startsWith('DOOR')).map(a => a.message))");
+  expect(doorLog).not.toContain(code); // 코드 원문 미기록
+
   // 4) 고객 문의 → 운영자 처리 → 고객 화면 반영
   await f.getByTestId("guest-request-text").fill("수건 2장 추가 부탁드려요");
   await f.getByTestId("guest-request-send").click();

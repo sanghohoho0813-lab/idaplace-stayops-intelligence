@@ -205,6 +205,8 @@ export interface AccessGrant {
   lastCheckedAt?: ISOInstant;
   supersededBy?: ID;
   manualNote?: string;
+  /** 가상 도어락 키패드 입력 기록 (시연용 · 실제 도어락 이벤트 아님). 코드 원문은 남기지 않는다. */
+  doorEvents?: { at: ISOInstant; ok: boolean }[];
   createdAt: ISOInstant;
   updatedAt: ISOInstant;
 }

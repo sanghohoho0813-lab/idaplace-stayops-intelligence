@@ -457,6 +457,11 @@ function AccessCodeCard({ s, r, verified }: { s: DemoState; r: Reservation; veri
         <p className="flex items-center gap-2 font-bold"><KeyRound className="h-5 w-5" aria-hidden />객실 출입코드</p>
         <Badge tone="danger" testId="mock-code-badge">가상 출입코드 · 실제 도어락 미연동</Badge>
       </div>
+      {g.doorEvents?.some((e) => e.ok) && (
+        <p className="flex items-center justify-center gap-1.5 bg-success-soft px-5 py-2 text-[0.86rem] font-bold text-success" data-testid="guest-door-opened">
+          <CheckCircle2 className="h-4 w-4" aria-hidden />문 열림 확인 · {fmtClock(g.doorEvents.find((e) => e.ok)!.at)} (가상 도어락) — 즐거운 숙박 되세요
+        </p>
+      )}
       {verified ? (
         <div className="relative px-5 py-5 text-center">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>

@@ -14,7 +14,7 @@ export function PresentationView() {
   // 시연을 시작할 때마다 이전 시연 데이터와 상관없이 처음 상태로 되돌린다 (화면 설정은 유지)
   const start = () => {
     resetDemo();
-    if (dv?.available) dv.openInMobile("/staff/tasks");
+    if (dv?.available) dv.openInMobile("/staff/tasks?tab=ops");
     startTour("presentation");
     toast({ tone: "info", title: "처음 상태로 초기화했습니다", body: "이전 시연 기록은 지워지고 화면 설정은 유지됩니다." });
   };
@@ -23,7 +23,7 @@ export function PresentationView() {
       <PageHeader
         title="시연 모드"
         eyebrow={<Badge tone="primary">약 4~5분</Badge>}
-        subtitle="시작하면 데이터가 처음 상태로 돌아가고, 화면이 순서대로 이동합니다."
+        subtitle="가상 운영 데이터로 고객 휴대폰 · 운영 화면 · 도어락 · 현장직원이 실시간으로 이어지는 과정을 보여줍니다. 시작할 때마다 처음 상태로 돌아갑니다."
       />
       <Button size="lg" block icon={Play} onClick={start} data-testid="start-presentation">
         시연 시작 (처음부터)
